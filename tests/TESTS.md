@@ -46,3 +46,13 @@ Notes:
 - The other five cases validate stderr and exit status for warnings/errors.
 - A runner script is available at tests/run_tests.sh. By default it writes outputs to tests/results_YYYYMMDD*.
 - Override the output directory with `./tests/run_tests.sh --results tests/results` or `RESULTS=tests/results ./tests/run_tests.sh`.
+
+pages_db.py unit tests:
+- tests/test_pages_db.py uses unittest to cover parse_dump behaviors, limits, and index helpers.
+- The runner includes this as the "pages_db" test via `python -m unittest tests.test_pages_db`.
+
+Coverage notes:
+- parse_dump covers empty file, bad header, malformed rows (strict vs non-strict), limits, and use_csv on a normal fixture.
+- Index helpers and pick_best are exercised with the sample.out fixture.
+- Gaps: no explicit CRLF fixture, no FileNotFound test, no strict_header=False path, and no use_csv escape-case fixture.
+- Gaps: no test for stats.skipped_oversized + reached_limit combined, and no content-unescape behavior (currently not implemented).

@@ -139,6 +139,9 @@ run lines_limit "$PYTHON_BIN" "${ROOT}/pages_list.py" \
 check_status lines_limit 0
 check_stderr_contains lines_limit "Warning: stopped after 2 line(s) due to --lines limit."
 
+run pages_db "$PYTHON_BIN" -m unittest tests.test_pages_db
+check_status pages_db 0
+
 if [ "$failures" -ne 0 ]; then
   echo "Tests failed: $failures"
   exit 1
