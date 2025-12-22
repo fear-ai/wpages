@@ -1,0 +1,9 @@
+id	post_title	post_content	post_status	post_date
+1	Home	Welcome home	publish	2023-01-01
+2	Home	Home draft	draft	2024-01-01
+3	About	About content	draft	2022-01-01
+4	About Us	About us content	publish	2023-05-01
+5	Contact	Contact info	private	2023-07-01
+6	contact	lowercase contact	publish	2023-08-01
+7	Blog	Blog content	publish	2023-02-01
+8	News	News content	publish	2023-03-01
