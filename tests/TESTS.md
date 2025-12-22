@@ -1,4 +1,12 @@
-Test cases for pages_list.py
+Test cases for pages_list.py and pages_db.py
+
+Applicability:
+- pages_list.py CLI tests validate stdout CSV and stderr warnings/errors.
+- pages_db.py unit tests validate parse_dump behavior and index helpers.
+
+Usage:
+- Run all tests: ./tests/run_tests.sh [--results PATH]
+- Run pages_db tests only: python -m unittest tests.test_pages_db
 
 Fixtures:
 - *.out files are small mysql tab dumps with a header row and tab-delimited fields.
