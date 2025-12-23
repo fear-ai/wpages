@@ -2,6 +2,7 @@ WordPress database dump obtained via
 mysql -p -e "SELECT ID, post_title, post_content, post_status, post_date FROM wp_posts WHERE post_type='page' ORDER BY ID;"
 Results saved in a text file, db.out by default. List Pages with pages_list.py and save contents to individual files with pages_text.py
 Note: pages_list.py expects default mysql -e output where tabs/newlines inside fields are escaped. If you use --raw or have literal tabs, the simple split can misparse; switch to a csv.reader with `delimiter="\t"`, `quoting=csv.QUOTE_NONE`, and `escapechar="\\"`, or avoid --raw.
+Normalization: parsing normalizes header casing and line endings (CR/LF), but does not normalize field content or unescape backslash sequences.
 
 Duplicates:
 - Instances:

@@ -5,63 +5,7 @@ import re
 import sys
 from pathlib import Path
 
-
-EXPECTED_HEADER = ["id", "post_title", "post_content", "post_status", "post_date"]
-
-
-def load_rows(path: Path, max_lines: int, max_bytes: int) -> list:
-    rows = []
-    bad_count = 0
-    oversized_count = 0
-    line_count = 0
-    reached_limit = False
-    with path.open("r", encoding="utf-8", errors="replace") as handle:
-        header = handle.readline()
-        if not header:
-            raise ValueError("Empty input file (missing header).")
-        header_cols = [col.strip().lower() for col in header.rstrip("\n").split("\t")]
-        if header_cols != EXPECTED_HEADER:
-            raise ValueError(
-                f"Unexpected header columns: {header_cols!r} (expected {EXPECTED_HEADER!r})"
-            )
-        for line_no, line in enumerate(handle, start=2):
-            line = line.rstrip("\n")
-            if not line:
-                continue
-            if max_lines and line_count >= max_lines:
-                reached_limit = True
-                break
-            line_count += 1
-            if max_bytes:
-                line_size = len(line.encode("utf-8"))
-                if line_size > max_bytes:
-                    oversized_count += 1
-                    continue
-            parts = line.split("\t", 4)
-            if len(parts) != 5:
-                bad_count += 1
-                continue
-            post_id, title, content, status, post_date = parts
-            rows.append(
-                {
-                    "id": post_id,
-                    "title": title,
-                    "status": status,
-                    "date": post_date,
-                }
-            )
-    if bad_count:
-        message = f"Warning: skipped {bad_count} malformed line(s) in {path}"
-        print(message, file=sys.stderr)
-    if oversized_count:
-        message = f"Warning: skipped {oversized_count} oversized line(s) in {path}"
-        print(message, file=sys.stderr)
-    if reached_limit:
-        print(
-            f"Warning: stopped after {line_count} line(s) due to --lines limit.",
-            file=sys.stderr,
-        )
-    return rows
+from pages_db import ParseError, ParseLimits, build_title_index, parse_dump, pick_best
 
 
 def load_focus_list(path: Path) -> tuple:
@@ -86,61 +30,21 @@ def load_focus_list(path: Path) -> tuple:
     return focus_names, dup_count
 
 
-def status_rank(status: str) -> int:
-    order = {
-        "publish": 0,
-        "draft": 1,
-        "private": 2,
-    }
-    return order.get(status.lower(), 3)
-
-
-def pick_best(matches: list) -> dict:
-    best = None
-    for row in matches:
-        if best is None:
-            best = row
-            continue
-        row_rank = status_rank(row["status"])
-        best_rank = status_rank(best["status"])
-        if row_rank < best_rank:
-            best = row
-            continue
-        if row_rank == best_rank and row["date"] > best["date"]:
-            best = row
-    return best
-
-
-def match_rows(rows: list, name: str, prefix: bool, case_sensitive: bool) -> list:
-    name_key = name if case_sensitive else name.lower()
-    matches = []
-    for row in rows:
-        title_key = row["title"] if case_sensitive else row["title"].lower()
-        if prefix:
-            if title_key.startswith(name_key):
-                matches.append(row)
-        else:
-            if title_key == name_key:
-                matches.append(row)
-    return matches
-
-
-def match_label(row: dict, focus_names: list, case_sensitive: bool) -> tuple:
-    if not focus_names:
+def match_label(row, focus_keys, case_sensitive: bool, use_prefix: bool) -> tuple:
+    if not focus_keys:
         return ("none", "")
-    title_key = row["title"] if case_sensitive else row["title"].lower()
-    for name in focus_names:
-        name_key = name if case_sensitive else name.lower()
+    title_key = row.title if case_sensitive else row.title.lower()
+    for name, name_key in focus_keys:
         if title_key == name_key:
             return ("exact", name)
-    for name in focus_names:
-        name_key = name if case_sensitive else name.lower()
-        if title_key.startswith(name_key):
-            return ("prefix", name)
+    if use_prefix:
+        for name, name_key in focus_keys:
+            if title_key.startswith(name_key):
+                return ("prefix", name)
     return ("none", "")
 
 
-def emit_row(focus: str, row: dict, match: str) -> dict:
+def emit_row(focus: str, row, match: str) -> dict:
     if row is None:
         return {
             "focus": focus,
@@ -152,10 +56,10 @@ def emit_row(focus: str, row: dict, match: str) -> dict:
         }
     return {
         "focus": focus or "",
-        "title": row["title"],
-        "id": row["id"],
-        "status": row["status"],
-        "date": row["date"],
+        "title": row.title,
+        "id": row.id,
+        "status": row.status,
+        "date": row.date,
         "match": match or "",
     }
 
@@ -223,6 +127,11 @@ def main() -> int:
         default=1_000_000,
         help="Max bytes per data line (0 for unlimited).",
     )
+    parser.add_argument(
+        "--csv",
+        action="store_true",
+        help="Parse the dump with csv.reader (tab delimiter, backslash escapes).",
+    )
     args = parser.parse_args()
 
     if args.lines < 0:
@@ -230,6 +139,9 @@ def main() -> int:
         return 1
     if args.max_bytes < 0:
         print("Error: --bytes must be 0 or a positive integer.", file=sys.stderr)
+        return 1
+    if args.only and args.details:
+        print("Error: --only cannot be used with --details.", file=sys.stderr)
         return 1
 
     use_prefix = args.use_prefix if args.use_prefix is not None else args.details
@@ -241,32 +153,72 @@ def main() -> int:
     if not pages_path.exists():
         print(f"Error: pages list file not found: {pages_path}", file=sys.stderr)
         return 1
+    input_path = Path(args.input)
     try:
-        rows = load_rows(Path(args.input), args.lines, args.max_bytes)
-    except ValueError as exc:
+        result = parse_dump(
+            input_path,
+            limits=ParseLimits(max_lines=args.lines, max_bytes=args.max_bytes),
+            strict_header=True,
+            strict_columns=True,
+            use_csv=args.csv,
+            include_content=False,
+        )
+    except FileNotFoundError:
+        print(f"Error: input file not found: {input_path}", file=sys.stderr)
+        return 1
+    except ParseError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
+
+    if result.stats.skipped_oversized:
+        print(
+            f"Warning: skipped {result.stats.skipped_oversized} oversized line(s) "
+            f"in {input_path}",
+            file=sys.stderr,
+        )
+    if result.stats.skipped_malformed:
+        print(
+            f"Warning: skipped {result.stats.skipped_malformed} malformed line(s) "
+            f"in {input_path}",
+            file=sys.stderr,
+        )
+    if result.stats.reached_limit:
+        print(
+            f"Warning: stopped after {result.stats.read_lines} line(s) due to --lines limit.",
+            file=sys.stderr,
+        )
     focus_names, duplicate_count = load_focus_list(pages_path)
     if args.only and not focus_names:
         print("Error: --only requires at least one page name.", file=sys.stderr)
         return 1
 
     output = []
+    rows = result.rows
+    title_index = build_title_index(rows, case_sensitive=case_sensitive)
+    focus_keys = [
+        (name, name if case_sensitive else name.lower()) for name in focus_names
+    ]
+    rows_with_keys = [
+        (row.title if case_sensitive else row.title.lower(), row) for row in rows
+    ]
+
     if focus_names:
-        for name in focus_names:
-            exact_matches = match_rows(
-                rows, name, prefix=False, case_sensitive=case_sensitive
-            )
+        for name, name_key in focus_keys:
+            exact_matches = title_index.get(name_key, [])
             if exact_matches:
                 best = exact_matches[0] if len(exact_matches) == 1 else pick_best(exact_matches)
                 output.append(emit_row(name, best, "exact"))
                 continue
             if use_prefix:
-                prefix_matches = match_rows(
-                    rows, name, prefix=True, case_sensitive=case_sensitive
-                )
+                prefix_matches = [
+                    row for title_key, row in rows_with_keys if title_key.startswith(name_key)
+                ]
                 if prefix_matches:
-                    best = prefix_matches[0] if len(prefix_matches) == 1 else pick_best(prefix_matches)
+                    best = (
+                        prefix_matches[0]
+                        if len(prefix_matches) == 1
+                        else pick_best(prefix_matches)
+                    )
                     output.append(emit_row(name, best, "prefix"))
                     continue
             if args.details:
@@ -275,12 +227,10 @@ def main() -> int:
     if not args.only:
         used_ids = {row["id"] for row in output if row["id"]}
         for row in rows:
-            if row["id"] in used_ids:
+            if row.id in used_ids:
                 continue
             if args.details:
-                label, focus = match_label(
-                    row, focus_names, case_sensitive=case_sensitive
-                )
+                label, focus = match_label(row, focus_keys, case_sensitive, use_prefix)
                 output.append(emit_row(focus, row, label))
             else:
                 output.append(emit_row("", row, ""))

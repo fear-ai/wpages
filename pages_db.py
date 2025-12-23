@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 import csv
 
@@ -34,6 +34,8 @@ class ParseStats:
     skipped_malformed: int = 0
     skipped_oversized: int = 0
     reached_limit: bool = False
+    header_mismatch: bool = False
+    header_columns: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -61,7 +63,10 @@ def parse_dump(
         if not header:
             raise ParseError(f"Empty input file {path}")
         header_cols = [col.strip().lower() for col in header.rstrip("\r\n").split("\t")]
-        if strict_header and header_cols != EXPECTED_HEADER:
+        stats.header_columns = header_cols
+        mismatch = header_cols != EXPECTED_HEADER
+        stats.header_mismatch = mismatch
+        if strict_header and mismatch:
             raise ParseError(
                 f"Unexpected header columns in {path}: {header_cols!r} "
                 f"(expected {EXPECTED_HEADER!r})"
