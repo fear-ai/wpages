@@ -3,10 +3,15 @@ Test cases for pages_list.py and pages_db.py
 Applicability:
 - pages_list.py CLI tests validate stdout CSV and stderr warnings/errors; warnings are non-fatal (exit 0) and errors exit 1 with only stderr output.
 - pages_db.py unit tests validate parse_dump behavior and index helpers.
+- pages_focus.py unit tests validate focus list parsing and matching helpers.
+- pages_cli.py unit tests validate CLI helpers (limits, parsing errors, warning emission).
+- pages_text.py CLI tests validate output .txt files per focus name.
 
 Usage:
 - Run all tests: ./tests/run_tests.sh [--results PATH]
 - Run pages_db tests only: python tests/test_pages_db.py
+- Run pages_focus tests only: python tests/test_pages_focus.py
+- Run pages_cli tests only: python tests/test_pages_cli.py
 
 Fixtures:
 - *.out files are small mysql tab dumps with a header row and tab-delimited fields.
@@ -34,6 +39,9 @@ Input files:
 - tests/all_rows_expected.csv: output with empty focus list (all rows, input order).
 - tests/details_sample_expected.csv: details output for sample.out with sample.list.
 - tests/details_oversized_expected.csv: details output for oversized.out with sample.list.
+- tests/pages_text_home_expected.txt: expected cleaned output for Home (sample.out).
+- tests/pages_text_about_expected.txt: expected cleaned output for About (sample.out).
+- tests/pages_text_contact_expected.txt: expected cleaned output for Contact (sample.out).
 
 Defaults (no flags):
 - Command: python3 pages_list.py --input tests/sample.out --pages tests/sample.list
@@ -90,6 +98,10 @@ Bad header (details mode):
 Oversized line skip (details mode, use small --bytes to trigger):
 - Command: python3 pages_list.py --input tests/oversized.out --pages tests/sample.list --details
 - Expected stdout: tests/details_oversized_expected.csv
+
+pages_text basic extraction:
+- Command: python3 pages_text.py --input tests/sample.out --pages tests/sample.list --output-dir <tmp>
+- Expected files: Home.txt, About.txt, Contact.txt with the contents in tests/pages_text_*_expected.txt
 
 Duplicate focus names (per-duplicate warning):
 - Command: python3 pages_list.py --input tests/sample.out --pages tests/dups.list --only
@@ -154,6 +166,14 @@ Notes:
 pages_db.py unit tests:
 - tests/test_pages_db.py uses unittest to cover parse_dump behaviors, limits, and index helpers.
 - The runner includes this as the "pages_db" test via `python tests/test_pages_db.py`.
+
+pages_focus.py unit tests:
+- tests/test_pages_focus.py covers load_focus_list dedupe behavior, build_rows_with_keys normalization, match_focus_entry selection, and match_label precedence.
+- The runner includes this as the "pages_focus" test via `python tests/test_pages_focus.py`.
+
+pages_cli.py unit tests:
+- tests/test_pages_cli.py covers limit validation, missing-file errors, parse errors, and strict vs non-strict warning emission.
+- The runner includes this as the "pages_cli" test via `python tests/test_pages_cli.py`.
 
 Coverage notes:
 - parse_dump covers empty file, bad header, malformed rows (strict vs non-strict), limits, and use_csv on a normal fixture.

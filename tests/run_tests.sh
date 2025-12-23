@@ -80,6 +80,17 @@ check_stdout() {
   fi
 }
 
+check_file() {
+  name="$1"
+  actual="$2"
+  expected="$3"
+  diff -u "$expected" "$actual" > "${results}/${name}_$(basename "$expected").diff"
+  if [ -s "${results}/${name}_$(basename "$expected").diff" ]; then
+    echo "FAIL: $name file mismatch for $actual (see ${results}/${name}_$(basename "$expected").diff)"
+    failures=$((failures + 1))
+  fi
+}
+
 check_stderr_contains() {
   name="$1"
   expected="$2"
@@ -186,6 +197,16 @@ run details_oversized "$PYTHON_BIN" "${ROOT}/pages_list.py" \
 check_status details_oversized 0
 check_stdout details_oversized "${TESTS_DIR}/details_oversized_expected.csv"
 
+pages_text_dir="${results}/pages_text"
+run pages_text_basic "$PYTHON_BIN" "${ROOT}/pages_text.py" \
+  --input "${TESTS_DIR}/sample.out" \
+  --pages "${TESTS_DIR}/sample.list" \
+  --output-dir "$pages_text_dir"
+check_status pages_text_basic 0
+check_file pages_text_basic "${pages_text_dir}/Home.txt" "${TESTS_DIR}/pages_text_home_expected.txt"
+check_file pages_text_basic "${pages_text_dir}/About.txt" "${TESTS_DIR}/pages_text_about_expected.txt"
+check_file pages_text_basic "${pages_text_dir}/Contact.txt" "${TESTS_DIR}/pages_text_contact_expected.txt"
+
 run dups "$PYTHON_BIN" "${ROOT}/pages_list.py" \
   --input "${TESTS_DIR}/sample.out" \
   --pages "${TESTS_DIR}/dups.list" \
@@ -282,6 +303,12 @@ check_stderr_contains empty_default_pages "Error: --only requires at least one p
 
 run pages_db "$PYTHON_BIN" "${TESTS_DIR}/test_pages_db.py"
 check_status pages_db 0
+
+run pages_focus "$PYTHON_BIN" "${TESTS_DIR}/test_pages_focus.py"
+check_status pages_focus 0
+
+run pages_cli "$PYTHON_BIN" "${TESTS_DIR}/test_pages_cli.py"
+check_status pages_cli 0
 
 if [ "$failures" -ne 0 ]; then
   echo "Tests failed: $failures"
