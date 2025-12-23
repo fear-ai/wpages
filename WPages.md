@@ -1,9 +1,15 @@
 WordPress database dump obtained via
 mysql -p -e "SELECT ID, post_title, post_content, post_status, post_date FROM wp_posts WHERE post_type='page' ORDER BY ID;"
 Results saved in a text file, db.out by default. List Pages with pages_list.py and save contents to individual files with pages_text.py
-Note: pages_list.py expects default mysql -e output where tabs/newlines inside fields are escaped. If you use --raw or have literal tabs, the simple split can misparse; use `--csv` to switch to csv.reader with `delimiter="\t"`, `quoting=csv.QUOTE_NONE`, and `escapechar="\\"`, or avoid --raw.
-Normalization: parsing normalizes header casing and line endings (CR/LF), but does not normalize field content or unescape backslash sequences. Matching normalizes focus names and titles consistently (case-sensitive or lowercased) for dedupe, indexing, prefix checks, and details labeling.
+Note: pages_list.py expects default mysql -e output where tabs/newlines inside column values are escaped. If you use --raw or have literal tabs, the simple split can misparse; use `--csv` to switch to csv.reader with `delimiter="\t"`, `quoting=csv.QUOTE_NONE`, and `escapechar="\\"`, or avoid --raw.
+Normalization: parsing normalizes header casing and line endings (CR/LF), but does not normalize column values or unescape backslash sequences. Matching normalizes focus names and titles consistently (case-sensitive or lowercased) for dedupe, indexing, prefix checks, and details labeling.
 pages.list can be comma- or newline-separated; whitespace is trimmed per entry.
+
+Terminology:
+- Column: database structure element (SQL/MySQL); column name is the header label (e.g., post_title).
+- Row: a record; column value is the data within a row/column intersection (prefer "column value" over "field" or "cell").
+- Page title: WordPress UI title stored in post_title. Page name (in this tooling) is the pages.list entry that is matched against post_title; it is not a slug.
+- Label: match classification in details output (exact/prefix/none).
 
 Duplicates:
 - Instances:
@@ -28,7 +34,7 @@ Performance:
 - Repeated scans can be P x F if callers re-parse or re-scan rows; prefer building indices once and reuse them when possible.
 - IO and memory:
   - The script loads all rows into memory; large dumps can be heavy without limits.
-  - Large post_content fields cause huge lines; `--bytes` protects against that.
+  - Large post_content column values cause huge lines; `--bytes` protects against that.
   - Excluding content (list-only paths) reduces memory pressure and speeds up parsing.
 - Validation cost:
   - Date checks use datetime.strptime for calendar correctness; regex is faster but only validates shape.

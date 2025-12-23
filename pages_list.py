@@ -6,7 +6,7 @@ from pathlib import Path
 
 from pages_db import build_title_index
 from pages_cli import (
-    emit_parse_warnings,
+    emit_db_warnings,
     load_focus_list_checked,
     parse_dump_checked,
     validate_limits,
@@ -102,6 +102,22 @@ def main() -> int:
         action="store_true",
         help="Parse the dump with csv.reader (tab delimiter, backslash escapes).",
     )
+    parser.add_argument(
+        "--permit-header",
+        "--permit_header",
+        dest="strict_header",
+        action="store_false",
+        default=True,
+        help="Allow header column names to differ from expected names (default: strict).",
+    )
+    parser.add_argument(
+        "--permit-columns",
+        "--permit_columns",
+        dest="strict_columns",
+        action="store_false",
+        default=True,
+        help="Allow malformed rows; skip and count them (default: strict).",
+    )
     args = parser.parse_args()
 
     if not validate_limits(args.lines, args.max_bytes):
@@ -119,8 +135,8 @@ def main() -> int:
     focus_entries = load_focus_list_checked(pages_path, case_sensitive)
     if focus_entries is None:
         return 1
-    strict_header = True
-    strict_columns = True
+    strict_header = args.strict_header
+    strict_columns = args.strict_columns
     input_path = Path(args.input)
     result = parse_dump_checked(
         input_path,
@@ -133,14 +149,14 @@ def main() -> int:
     )
     if result is None:
         return 1
-    emit_parse_warnings(
+    emit_db_warnings(
         result,
         input_path,
         strict_header=strict_header,
         strict_columns=strict_columns,
     )
     if args.only and not focus_entries:
-        print("Error: --only requires at least one page name.", file=sys.stderr)
+        print("Error: pages list must include at least one page name.", file=sys.stderr)
         return 1
 
     output = []

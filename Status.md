@@ -15,8 +15,8 @@ Status for WPages tooling and tests
   - Row validation: strict_columns defaults to True; malformed rows raise ParseError with line number + path; when False, malformed rows are skipped and counted.
   - Limits: max_lines applies to data lines only and sets stats.reached_limit; max_bytes skips oversized lines and increments stats.skipped_oversized.
   - Parsing mode: split-by-tab is the default; csv.reader mode is enabled via --csv and uses tab delimiter, QUOTE_NONE, and escapechar "\\".
-  - Row data: fields are strings (id, title, content, status, date); include_content defaults to True, otherwise content is empty.
-  - Data normalization strips CR/LF on each data line; field values are otherwise unnormalized.
+  - Row data: column values are strings (id, title, content, status, date); include_content defaults to True, otherwise content is empty.
+  - Data normalization strips CR/LF on each data line; column values are otherwise unnormalized.
   - Value validation counts invalid ids, duplicate ids, unknown statuses, and invalid dates (stats.invalid_id_count, stats.duplicate_id_count, stats.unknown_status_count, stats.invalid_date_count).
   - Indexes and matching: build_title_index/build_id_index retain lists per key; status_rank follows KNOWN_STATUSES order (publish, future, pending, draft, private, inherit, auto-draft, trash) then unknowns; pick_best uses status_rank then date string comparison.
  

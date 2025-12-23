@@ -82,7 +82,7 @@ def parse_dump_checked(
         return None
 
 
-def emit_parse_warnings(
+def emit_db_warnings(
     result: ParseResult,
     input_path: Path,
     *,
