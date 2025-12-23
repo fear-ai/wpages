@@ -36,15 +36,14 @@ if [ -n "$results_arg" ]; then
 elif [ -n "${RESULTS:-}" ]; then
   results="$RESULTS"
 else
-  date_str="$(date +%Y%m%d)"
+  date_str="$(date +%Y%m%d_%H%M%S)"
   results="${TESTS_DIR}/results_${date_str}"
-  if [ -e "$results" ]; then
-    i=2
-    while [ -e "${results}_$i" ]; do i=$((i+1)); done
-    results="${results}_$i"
-  fi
 fi
 mkdir -p "$results"
+missing_pages_dir="${results}/work_missing_pages"
+empty_pages_dir="${results}/work_empty_pages"
+mkdir -p "$missing_pages_dir" "$empty_pages_dir"
+: > "${empty_pages_dir}/pages.list"
 
 failures=0
 
@@ -90,6 +89,12 @@ check_stderr_contains() {
   fi
 }
 
+run defaults "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/sample.out" \
+  --pages "${TESTS_DIR}/sample.list"
+check_status defaults 0
+check_stdout defaults "${TESTS_DIR}/default_expected.csv"
+
 run exact "$PYTHON_BIN" "${ROOT}/pages_list.py" \
   --input "${TESTS_DIR}/sample.out" \
   --pages "${TESTS_DIR}/sample.list" \
@@ -97,12 +102,82 @@ run exact "$PYTHON_BIN" "${ROOT}/pages_list.py" \
 check_status exact 0
 check_stdout exact "${TESTS_DIR}/sample_only_expected.csv"
 
+run csv_mode "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/sample.out" \
+  --pages "${TESTS_DIR}/sample.list" \
+  --only --csv
+check_status csv_mode 0
+check_stdout csv_mode "${TESTS_DIR}/sample_only_expected.csv"
+
+run prefix_flag "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/sample.out" \
+  --pages "${TESTS_DIR}/prefix_only.list" \
+  --only --prefix
+check_status prefix_flag 0
+check_stdout prefix_flag "${TESTS_DIR}/prefix_only_expected.csv"
+
+run noprefix_flag "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/sample.out" \
+  --pages "${TESTS_DIR}/prefix_only.list" \
+  --details --noprefix
+check_status noprefix_flag 0
+check_stdout noprefix_flag "${TESTS_DIR}/prefix_noprefix_expected.csv"
+
+run case_sensitive "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/sample.out" \
+  --pages "${TESTS_DIR}/case.list" \
+  --only
+check_status case_sensitive 0
+check_stdout case_sensitive "${TESTS_DIR}/case_sensitive_expected.csv"
+
+run case_nocase "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/sample.out" \
+  --pages "${TESTS_DIR}/case.list" \
+  --only --nocase
+check_status case_nocase 0
+check_stdout case_nocase "${TESTS_DIR}/case_nocase_expected.csv"
+
+run list_glitch "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/sample.out" \
+  --pages "${TESTS_DIR}/sample_glitch.list" \
+  --only
+check_status list_glitch 0
+check_stdout list_glitch "${TESTS_DIR}/sample_only_expected.csv"
+
 run prefix_details "$PYTHON_BIN" "${ROOT}/pages_list.py" \
   --input "${TESTS_DIR}/sample.out" \
   --pages "${TESTS_DIR}/prefix.list" \
-  --only --details
+  --details
 check_status prefix_details 0
 check_stdout prefix_details "${TESTS_DIR}/prefix_details_expected.csv"
+
+run details_sample "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/sample.out" \
+  --pages "${TESTS_DIR}/sample.list" \
+  --details
+check_status details_sample 0
+check_stdout details_sample "${TESTS_DIR}/details_sample_expected.csv"
+
+run details_malformed "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/malformed.out" \
+  --pages "${TESTS_DIR}/sample.list" \
+  --details
+check_status details_malformed 1
+check_stderr_contains details_malformed "Error: Malformed row at line 2 in ${TESTS_DIR}/malformed.out: expected 5 columns, got 4"
+
+run details_bad_header "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/bad_header.out" \
+  --pages "${TESTS_DIR}/sample.list" \
+  --details
+check_status details_bad_header 1
+check_stderr_contains details_bad_header "Error: Unexpected header columns in ${TESTS_DIR}/bad_header.out:"
+
+run details_oversized "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/oversized.out" \
+  --pages "${TESTS_DIR}/sample.list" \
+  --details
+check_status details_oversized 0
+check_stdout details_oversized "${TESTS_DIR}/details_oversized_expected.csv"
 
 run dups "$PYTHON_BIN" "${ROOT}/pages_list.py" \
   --input "${TESTS_DIR}/sample.out" \
@@ -111,26 +186,6 @@ run dups "$PYTHON_BIN" "${ROOT}/pages_list.py" \
 check_status dups 0
 check_stderr_contains dups "Warning: duplicate page name skipped: Home"
 
-run malformed "$PYTHON_BIN" "${ROOT}/pages_list.py" \
-  --input "${TESTS_DIR}/malformed.out" \
-  --pages "${TESTS_DIR}/sample.list" \
-  --only
-check_status malformed 0
-check_stderr_contains malformed "Warning: skipped 1 malformed line(s) in ${TESTS_DIR}/malformed.out"
-
-run bad_header "$PYTHON_BIN" "${ROOT}/pages_list.py" \
-  --input "${TESTS_DIR}/bad_header.out" \
-  --pages "${TESTS_DIR}/sample.list" \
-  --only
-check_status bad_header 1
-check_stderr_contains bad_header "Error: Unexpected header columns:"
-
-run oversized "$PYTHON_BIN" "${ROOT}/pages_list.py" \
-  --input "${TESTS_DIR}/oversized.out" \
-  --pages "${TESTS_DIR}/sample.list" \
-  --only --bytes 100
-check_status oversized 0
-check_stderr_contains oversized "Warning: skipped 1 oversized line(s) in ${TESTS_DIR}/oversized.out"
 
 run lines_limit "$PYTHON_BIN" "${ROOT}/pages_list.py" \
   --input "${TESTS_DIR}/sample.out" \
@@ -139,7 +194,72 @@ run lines_limit "$PYTHON_BIN" "${ROOT}/pages_list.py" \
 check_status lines_limit 0
 check_stderr_contains lines_limit "Warning: stopped after 2 line(s) due to --lines limit."
 
-run pages_db "$PYTHON_BIN" -m unittest tests.test_pages_db
+run missing_pages "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/sample.out" \
+  --pages "${TESTS_DIR}/missing.list" \
+  --only
+check_status missing_pages 1
+check_stderr_contains missing_pages "Error: pages list file not found: ${TESTS_DIR}/missing.list"
+
+run empty_pages "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/sample.out" \
+  --pages "${TESTS_DIR}/empty.list" \
+  --only
+check_status empty_pages 1
+check_stderr_contains empty_pages "Error: --only requires at least one page name."
+
+run invalid_pages "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/sample.out" \
+  --pages "${TESTS_DIR}/invalid.list" \
+  --only
+check_status invalid_pages 1
+check_stderr_contains invalid_pages "Error: --only requires at least one page name."
+
+
+run empty_pages_default "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/sample.out" \
+  --pages "${TESTS_DIR}/empty.list"
+check_status empty_pages_default 0
+check_stdout empty_pages_default "${TESTS_DIR}/all_rows_expected.csv"
+
+run invalid_pages_default "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/sample.out" \
+  --pages "${TESTS_DIR}/invalid.list"
+check_status invalid_pages_default 0
+check_stdout invalid_pages_default "${TESTS_DIR}/all_rows_expected.csv"
+
+run bad_lines "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/sample.out" \
+  --pages "${TESTS_DIR}/sample.list" \
+  --only --lines -1
+check_status bad_lines 1
+check_stderr_contains bad_lines "Error: --lines must be 0 or a positive integer."
+
+run bad_bytes "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/sample.out" \
+  --pages "${TESTS_DIR}/sample.list" \
+  --only --bytes -1
+check_status bad_bytes 1
+check_stderr_contains bad_bytes "Error: --bytes must be 0 or a positive integer."
+
+run only_details "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/sample.out" \
+  --pages "${TESTS_DIR}/prefix.list" \
+  --only --details
+check_status only_details 1
+check_stderr_contains only_details "Error: --only cannot be used with --details."
+
+run missing_default_pages bash -c "cd '${missing_pages_dir}' \
+  && '${PYTHON_BIN}' '${ROOT}/pages_list.py' --input '${TESTS_DIR}/sample.out' --only"
+check_status missing_default_pages 1
+check_stderr_contains missing_default_pages "Error: pages list file not found: pages.list"
+
+run empty_default_pages bash -c "cd '${empty_pages_dir}' \
+  && '${PYTHON_BIN}' '${ROOT}/pages_list.py' --input '${TESTS_DIR}/sample.out' --only"
+check_status empty_default_pages 1
+check_stderr_contains empty_default_pages "Error: --only requires at least one page name."
+
+run pages_db "$PYTHON_BIN" "${TESTS_DIR}/test_pages_db.py"
 check_status pages_db 0
 
 if [ "$failures" -ne 0 ]; then
