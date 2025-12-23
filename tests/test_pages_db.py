@@ -164,7 +164,7 @@ class TestPagesDB(unittest.TestCase):
         with self.assertRaises(ParseError) as raised:
             parse_dump(path)
         message = str(raised.exception)
-        self.assertIn("Unexpected header columns", message)
+        self.assertIn("Header error", message)
         self.assertIn(str(path), message)
 
     def test_strict_header_false_reports_mismatch(self) -> None:
@@ -217,6 +217,19 @@ class TestPagesDB(unittest.TestCase):
         self.assertEqual(result.stats.read_lines, 2)
         self.assertEqual(result.stats.skipped_oversized, 1)
 
+    def test_validation_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "invalid_values.out"
+            content = (
+                "id\tpost_title\tpost_content\tpost_status\tpost_date\n"
+                "abc\tTitle\tBody\tcustom\t2023-13-99\n"
+            )
+            path.write_text(content, encoding="utf-8")
+            result = parse_dump(path)
+            self.assertEqual(result.stats.invalid_id_count, 1)
+            self.assertEqual(result.stats.unknown_status_count, 1)
+            self.assertEqual(result.stats.invalid_date_count, 1)
+
     def test_use_csv_parsing(self) -> None:
         result = parse_dump(TESTS_DIR / "sample.out", use_csv=True)
         self.assertEqual(len(result.rows), 8)
@@ -260,6 +273,19 @@ class TestPagesDB(unittest.TestCase):
     def test_include_content_false(self) -> None:
         result = parse_dump(TESTS_DIR / "sample.out", include_content=False)
         self.assertEqual(result.rows[0].content, "")
+
+    def test_duplicate_id_count(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "duplicate_id.out"
+            path.write_text(
+                "id\tpost_title\tpost_content\tpost_status\tpost_date\n"
+                "1\tOne\tFirst\tpublish\t2023-01-01\n"
+                "1\tTwo\tSecond\tdraft\t2023-01-02\n",
+                encoding="utf-8",
+            )
+            result = parse_dump(path)
+            self.assertEqual(len(result.rows), 2)
+            self.assertEqual(result.stats.duplicate_id_count, 1)
 
     def test_indexes_and_pick_best(self) -> None:
         rows = parse_dump(TESTS_DIR / "sample.out").rows

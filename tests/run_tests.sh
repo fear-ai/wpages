@@ -151,6 +151,13 @@ run prefix_details "$PYTHON_BIN" "${ROOT}/pages_list.py" \
 check_status prefix_details 0
 check_stdout prefix_details "${TESTS_DIR}/prefix_details_expected.csv"
 
+run prefix_overlap "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/sample.out" \
+  --pages "${TESTS_DIR}/prefix_overlap.list" \
+  --details
+check_status prefix_overlap 0
+check_stdout prefix_overlap "${TESTS_DIR}/prefix_overlap_expected.csv"
+
 run details_sample "$PYTHON_BIN" "${ROOT}/pages_list.py" \
   --input "${TESTS_DIR}/sample.out" \
   --pages "${TESTS_DIR}/sample.list" \
@@ -170,7 +177,7 @@ run details_bad_header "$PYTHON_BIN" "${ROOT}/pages_list.py" \
   --pages "${TESTS_DIR}/sample.list" \
   --details
 check_status details_bad_header 1
-check_stderr_contains details_bad_header "Error: Unexpected header columns in ${TESTS_DIR}/bad_header.out:"
+check_stderr_contains details_bad_header "Error: Header error in ${TESTS_DIR}/bad_header.out:"
 
 run details_oversized "$PYTHON_BIN" "${ROOT}/pages_list.py" \
   --input "${TESTS_DIR}/oversized.out" \
@@ -184,7 +191,21 @@ run dups "$PYTHON_BIN" "${ROOT}/pages_list.py" \
   --pages "${TESTS_DIR}/dups.list" \
   --only
 check_status dups 0
-check_stderr_contains dups "Warning: duplicate page name skipped: Home"
+check_stderr_contains dups "Warning: Duplicate page name skipped: Home"
+
+run dups_case "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/sample.out" \
+  --pages "${TESTS_DIR}/case_dups.list" \
+  --only --nocase
+check_status dups_case 0
+check_stderr_contains dups_case "Warning: Duplicate page name skipped: contact"
+
+run duplicate_id "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/duplicate_id.out" \
+  --pages "${TESTS_DIR}/sample.list" \
+  --only
+check_status duplicate_id 0
+check_stderr_contains duplicate_id "Warning: Duplicate id count: 1"
 
 
 run lines_limit "$PYTHON_BIN" "${ROOT}/pages_list.py" \
@@ -192,7 +213,7 @@ run lines_limit "$PYTHON_BIN" "${ROOT}/pages_list.py" \
   --pages "${TESTS_DIR}/sample.list" \
   --only --lines 2
 check_status lines_limit 0
-check_stderr_contains lines_limit "Warning: stopped after 2 line(s) due to --lines limit."
+check_stderr_contains lines_limit "Warning: Line limit reached at line 2."
 
 run missing_pages "$PYTHON_BIN" "${ROOT}/pages_list.py" \
   --input "${TESTS_DIR}/sample.out" \
