@@ -8,13 +8,15 @@ from pathlib import Path
 
 from pages_db import build_title_index
 from pages_cli import (
+    add_common_args,
     emit_db_warnings,
-    load_focus_list_checked,
+    error,
+    load_focus_entries,
     parse_dump_checked,
     validate_limits,
     warn,
 )
-from pages_focus import build_rows_with_keys, match_focus_entry
+from pages_focus import build_rows_keys, match_focus_entry
 
 
 def clean_text(text: str) -> str:
@@ -88,16 +90,6 @@ def main() -> int:
         description="Extract page text from a mysql tab dump and write per-page .txt files."
     )
     parser.add_argument(
-        "--input",
-        default="db.out",
-        help="Path to mysql tab dump (default: db.out).",
-    )
-    parser.add_argument(
-        "--pages",
-        default="pages.list",
-        help="Comma-separated page names list file (default: pages.list).",
-    )
-    parser.add_argument(
         "--output-dir",
         default=".",
         help="Directory to write .txt files (default: current directory).",
@@ -107,76 +99,26 @@ def main() -> int:
         action="store_true",
         help="Keep footer-like sections (Resources/Community) instead of stripping them.",
     )
-    parser.add_argument(
-        "--prefix",
-        dest="use_prefix",
-        action="store_true",
-        default=None,
-        help="Enable prefix matching (default: off).",
-    )
-    parser.add_argument(
-        "--noprefix",
-        dest="use_prefix",
-        action="store_false",
-        help="Disable prefix matching.",
-    )
-    parser.add_argument(
-        "--case",
-        dest="case_sensitive",
-        action="store_true",
-        default=None,
-        help="Use case-sensitive matching (default: on).",
-    )
-    parser.add_argument(
-        "--nocase",
-        dest="case_sensitive",
-        action="store_false",
-        help="Use case-insensitive matching.",
-    )
-    parser.add_argument(
-        "--lines",
-        type=int,
-        default=1000,
-        help="Max data lines to read (0 for unlimited).",
-    )
-    parser.add_argument(
-        "--bytes",
-        dest="max_bytes",
-        type=int,
-        default=1_000_000,
-        help="Max bytes per data line (0 for unlimited).",
-    )
-    parser.add_argument(
-        "--csv",
-        action="store_true",
-        help="Parse the dump with csv.reader (tab delimiter, backslash escapes).",
-    )
-    parser.add_argument(
-        "--permit-header",
-        "--permit_header",
-        dest="strict_header",
-        action="store_false",
-        default=True,
-        help="Allow header column names to differ from expected names (default: strict).",
-    )
-    parser.add_argument(
-        "--permit-columns",
-        "--permit_columns",
-        dest="strict_columns",
-        action="store_false",
-        default=True,
-        help="Allow malformed rows; skip and count them (default: strict).",
+    add_common_args(
+        parser,
+        prefix_default=False,
+        case_default=True,
+        prefix_help="Enable prefix matching (default: off).",
+        case_help="Use case-sensitive matching (default: on).",
     )
     args = parser.parse_args()
 
     if not validate_limits(args.lines, args.max_bytes):
         return 1
+    if args.permit:
+        args.strict_header = False
+        args.strict_columns = False
 
     use_prefix = args.use_prefix if args.use_prefix is not None else False
     case_sensitive = args.case_sensitive if args.case_sensitive is not None else True
 
     pages_path = Path(args.pages)
-    focus_entries = load_focus_list_checked(pages_path, case_sensitive)
+    focus_entries = load_focus_entries(pages_path, case_sensitive)
     if focus_entries is None:
         return 1
     strict_header = args.strict_header
@@ -200,18 +142,22 @@ def main() -> int:
         strict_columns=strict_columns,
     )
     if not focus_entries:
-        print("Error: pages list must include at least one page name.", file=sys.stderr)
+        error("pages list must include at least one page name.")
         return 1
 
     output_dir = Path(args.output_dir)
     if output_dir.exists() and not output_dir.is_dir():
-        print(f"Error: output path is not a directory: {output_dir}", file=sys.stderr)
+        error(f"output path is not a directory: {output_dir}")
         return 1
-    output_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        output_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        error(f"output directory could not be created: {output_dir} ({exc})")
+        return 1
 
     rows = result.rows
     title_index = build_title_index(rows, case_sensitive=case_sensitive)
-    rows_with_keys = build_rows_with_keys(rows, case_sensitive) if use_prefix else []
+    rows_with_keys = build_rows_keys(rows, case_sensitive) if use_prefix else []
 
     for entry in focus_entries:
         label, row = match_focus_entry(
@@ -227,7 +173,11 @@ def main() -> int:
         if not args.footer:
             cleaned = strip_footer(cleaned)
         out_path = output_dir / safe_filename(entry.name)
-        out_path.write_text(cleaned, encoding="ascii", errors="ignore")
+        try:
+            out_path.write_text(cleaned, encoding="ascii", errors="ignore")
+        except OSError as exc:
+            error(f"output file could not be written: {out_path} ({exc})")
+            return 1
         print(f"Wrote {out_path} ({row.id}, {label})")
 
     return 0

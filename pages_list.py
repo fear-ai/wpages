@@ -6,12 +6,14 @@ from pathlib import Path
 
 from pages_db import build_title_index
 from pages_cli import (
+    add_common_args,
     emit_db_warnings,
-    load_focus_list_checked,
+    error,
+    load_focus_entries,
     parse_dump_checked,
     validate_limits,
 )
-from pages_focus import build_rows_with_keys, match_focus_entry, match_label
+from pages_focus import build_rows_keys, match_focus_entry, match_label
 
 
 def emit_row(focus: str, row, match: str) -> dict:
@@ -38,15 +40,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="List pages from a mysql tab dump, optionally focusing on names from a list."
     )
-    parser.add_argument(
-        "--input",
-        default="db.out",
-        help="Path to mysql tab dump (default: db.out).",
-    )
-    parser.add_argument(
-        "--pages",
-        default="pages.list",
-        help="Comma-separated page names list file (default: pages.list).",
+    add_common_args(
+        parser,
+        prefix_default=None,
+        case_default=None,
+        prefix_help="Enable prefix matching (default: off unless --details).",
+        case_help="Use case-sensitive matching (default: on unless --details).",
     )
     parser.add_argument(
         "--only",
@@ -58,73 +57,16 @@ def main() -> int:
         action="store_true",
         help="Use prefix matching and include match details in CSV output.",
     )
-    parser.add_argument(
-        "--prefix",
-        dest="use_prefix",
-        action="store_true",
-        default=None,
-        help="Enable prefix matching (default: off unless --details).",
-    )
-    parser.add_argument(
-        "--noprefix",
-        dest="use_prefix",
-        action="store_false",
-        help="Disable prefix matching.",
-    )
-    parser.add_argument(
-        "--case",
-        dest="case_sensitive",
-        action="store_true",
-        default=None,
-        help="Use case-sensitive matching (default: on unless --details).",
-    )
-    parser.add_argument(
-        "--nocase",
-        dest="case_sensitive",
-        action="store_false",
-        help="Use case-insensitive matching.",
-    )
-    parser.add_argument(
-        "--lines",
-        type=int,
-        default=1000,
-        help="Max data lines to read (0 for unlimited).",
-    )
-    parser.add_argument(
-        "--bytes",
-        dest="max_bytes",
-        type=int,
-        default=1_000_000,
-        help="Max bytes per data line (0 for unlimited).",
-    )
-    parser.add_argument(
-        "--csv",
-        action="store_true",
-        help="Parse the dump with csv.reader (tab delimiter, backslash escapes).",
-    )
-    parser.add_argument(
-        "--permit-header",
-        "--permit_header",
-        dest="strict_header",
-        action="store_false",
-        default=True,
-        help="Allow header column names to differ from expected names (default: strict).",
-    )
-    parser.add_argument(
-        "--permit-columns",
-        "--permit_columns",
-        dest="strict_columns",
-        action="store_false",
-        default=True,
-        help="Allow malformed rows; skip and count them (default: strict).",
-    )
     args = parser.parse_args()
 
     if not validate_limits(args.lines, args.max_bytes):
         return 1
     if args.only and args.details:
-        print("Error: --only cannot be used with --details.", file=sys.stderr)
+        error("--only cannot be used with --details.")
         return 1
+    if args.permit:
+        args.strict_header = False
+        args.strict_columns = False
 
     use_prefix = args.use_prefix if args.use_prefix is not None else args.details
     case_sensitive = (
@@ -132,7 +74,7 @@ def main() -> int:
     )
 
     pages_path = Path(args.pages)
-    focus_entries = load_focus_list_checked(pages_path, case_sensitive)
+    focus_entries = load_focus_entries(pages_path, case_sensitive)
     if focus_entries is None:
         return 1
     strict_header = args.strict_header
@@ -156,13 +98,13 @@ def main() -> int:
         strict_columns=strict_columns,
     )
     if args.only and not focus_entries:
-        print("Error: pages list must include at least one page name.", file=sys.stderr)
+        error("pages list must include at least one page name.")
         return 1
 
     output = []
     rows = result.rows
     title_index = build_title_index(rows, case_sensitive=case_sensitive)
-    rows_with_keys = build_rows_with_keys(rows, case_sensitive) if use_prefix else []
+    rows_with_keys = build_rows_keys(rows, case_sensitive) if use_prefix else []
 
     if focus_entries:
         for entry in focus_entries:

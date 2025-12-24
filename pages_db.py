@@ -112,10 +112,7 @@ def parse_dump(
 
             if len(parts) != 5:
                 if strict_columns:
-                    raise ParseError(
-                        f"Malformed row at line {line_no} in {path}: expected 5 columns, "
-                        f"got {len(parts)}"
-                    )
+                    raise ParseError(format_row_error(path, line_no, 5, len(parts)))
                 stats.skipped_malformed += 1
                 continue
 
@@ -144,6 +141,13 @@ def parse_dump(
 
 def format_header_error(path: Path, actual: list[str], expected: list[str]) -> str:
     return f"Header error in {path}: {actual!r} (expected {expected!r})"
+
+
+def format_row_error(path: Path, line_no: int, expected: int, got: int) -> str:
+    return (
+        f"Malformed row at line {line_no} in {path}: expected {expected} columns, "
+        f"got {got}"
+    )
 
 
 def _validate_id(value: str, stats: ParseStats) -> None:
