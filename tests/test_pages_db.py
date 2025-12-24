@@ -29,7 +29,7 @@ class TestPagesDB(unittest.TestCase):
         self.assertEqual(first.status, "publish")
         self.assertEqual(first.date, "2023-01-01")
 
-    def test_empty_file_error_includes_path(self) -> None:
+    def test_empty_file_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "empty.out"
             path.write_text("", encoding="utf-8")
@@ -37,12 +37,12 @@ class TestPagesDB(unittest.TestCase):
                 parse_dump(path)
         self.assertIn(str(path), str(raised.exception))
 
-    def test_missing_file_raises_filenotfound(self) -> None:
+    def test_missing_file_notfound(self) -> None:
         path = Path("nonexistant.file")
         with self.assertRaises(FileNotFoundError):
             parse_dump(path)
 
-    def test_header_error_includes_path(self) -> None:
+    def test_header_error_path(self) -> None:
         path = TESTS_DIR / "bad_header.out"
         with self.assertRaises(ParseError) as raised:
             parse_dump(path)
@@ -50,7 +50,7 @@ class TestPagesDB(unittest.TestCase):
         self.assertIn("Header error", message)
         self.assertIn(str(path), message)
 
-    def test_strict_header_false_reports_mismatch(self) -> None:
+    def test_header_permit_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "alt_header.out"
             content = (
@@ -68,7 +68,7 @@ class TestPagesDB(unittest.TestCase):
             self.assertEqual(result.rows[0].id, "1")
             self.assertEqual(result.rows[0].title, "Title")
 
-    def test_malformed_strict_columns_error_includes_path(self) -> None:
+    def test_malformed_strict_path(self) -> None:
         path = TESTS_DIR / "malformed.out"
         with self.assertRaises(ParseError) as raised:
             parse_dump(path)
@@ -76,7 +76,7 @@ class TestPagesDB(unittest.TestCase):
         self.assertIn("line 2", message)
         self.assertIn(str(path), message)
 
-    def test_malformed_non_strict_counts(self) -> None:
+    def test_malformed_permit_counts(self) -> None:
         result = parse_dump(TESTS_DIR / "malformed.out", strict_columns=False)
         self.assertEqual(len(result.rows), 1)
         self.assertEqual(result.rows[0].id, "10")
@@ -118,7 +118,7 @@ class TestPagesDB(unittest.TestCase):
         self.assertEqual(len(result.rows), 8)
         self.assertEqual(result.rows[0].title, "Home")
 
-    def test_use_csv_escaped_delimiter(self) -> None:
+    def test_csv_escaped_delim(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "escaped.out"
             content = (
@@ -170,7 +170,7 @@ class TestPagesDB(unittest.TestCase):
             self.assertEqual(len(result.rows), 2)
             self.assertEqual(result.stats.duplicate_id_count, 1)
 
-    def test_indexes_and_pick_best(self) -> None:
+    def test_indexes_and_best(self) -> None:
         rows = parse_dump(TESTS_DIR / "sample.out").rows
         title_index = build_title_index(rows)
         id_index = build_id_index(rows)

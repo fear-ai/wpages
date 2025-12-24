@@ -199,6 +199,14 @@ check_status permit_columns 0
 check_stdout permit_columns "${TESTS_DIR}/permit_columns_expected.csv"
 check_stderr_contains permit_columns "Warning: Malformed row count: 1 in ${TESTS_DIR}/malformed.out"
 
+run permit_both "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+  --input "${TESTS_DIR}/alt_header.out" \
+  --pages "${TESTS_DIR}/sample.list" \
+  --only --permit
+check_status permit_both 0
+check_stdout permit_both "${TESTS_DIR}/permit_header_expected.csv"
+check_stderr_contains permit_both "Warning: Header error in ${TESTS_DIR}/alt_header.out:"
+
 run dups "$PYTHON_BIN" "${ROOT}/pages_list.py" \
   --input "${TESTS_DIR}/sample.out" \
   --pages "${TESTS_DIR}/dups.list" \
