@@ -1,36 +1,59 @@
 Status for WPages tooling and tests
- 
-  Files
-  - WPages.md documents the WordPress page dump workflow and tradeoffs.
-  - Status.md tracks implementation notes, behaviors, and concerns.
-  - tests/TESTS.md documents fixture-based CLI tests and runner usage.
- 
-  Environment
-  - Python 3 is required; scripts use the standard library only.
- 
-  Implemented behaviors (pages_db.py)
+
+Documents
+- WPages.md documents the WordPress page dump workflow, requirements, and usage guidance.
+- Status.md tracks implementation state, decisions, and backlog items.
+- tests/TESTS.md documents fixture-based CLI tests and runner usage.
+
+Environment
+- Python 3 is required; scripts use the standard library only.
+- CLI scripts run locally, read/write the filesystem, and write results to stdout/stderr.
+- No network access or external services are required.
+
+Implementation
+- Input formats and normalization (pages_db.py, pages_focus.py)
+  - db.out uses a header line plus tab-delimited rows; header casing and line endings are normalized.
+  - pages.list is split on commas/newlines, entries are trimmed, and internal whitespace is preserved.
+- Parsing and limits (pages_db.py, pages_cli.py)
   - parse_dump is keyword-only and returns ParseResult rows + stats.
-  - Input errors: missing paths raise FileNotFoundError; empty files raise ParseError("Empty input file <path>").
-  - Header normalization strips CR/LF and lowercases column names before validation; mismatches set stats.header_mismatch and stats.header_columns, and strict_header raises a header error with path.
-  - Row validation: strict_columns defaults to True; malformed rows raise ParseError with line number + path; when False, malformed rows are skipped and counted.
-  - Limits: max_lines applies to data lines only and sets stats.reached_limit; max_bytes skips oversized lines and increments stats.skipped_oversized.
-  - Parsing mode: split-by-tab is the default; csv.reader mode is enabled via --csv and uses tab delimiter, QUOTE_NONE, and escapechar "\\".
-  - Row data: column values are strings (id, title, content, status, date); include_content defaults to True, otherwise content is empty.
-  - Data normalization strips CR/LF on each data line; column values are otherwise unnormalized.
-  - Value validation counts invalid ids, duplicate ids, unknown statuses, and invalid dates (stats.invalid_id_count, stats.duplicate_id_count, stats.unknown_status_count, stats.invalid_date_count).
-  - Indexes and matching: build_title_index/build_id_index retain lists per key; status_rank follows KNOWN_STATUSES order (publish, future, pending, draft, private, inherit, auto-draft, trash) then unknowns; pick_best uses status_rank then date string comparison.
- 
-  Concerns and pending limitations
-  - Strict header/columns: current pages_list.py always uses strict_header=True and strict_columns=True, so header mismatch and malformed row warnings are unreachable; decide whether to remove those warnings or add flags for warning-only parsing.
-  - ID duplicates: current behavior reports duplicate id count but does not dedupe; decide whether an explicit dedupe flag is ever needed.
-  - Raw dumps: current line-based parsing cannot handle literal tabs/newlines; --csv only handles backslash-escaped output on a single line. Decide whether to require mysql -e (no --raw) or build a parser that can handle embedded newlines.
-  - Validation enforcement: current id/status/date validation is count-only; decide whether to enforce numeric ids, allowed statuses, and date parsing, and whether violations are errors or warnings.
-  - Unescaping: current parser does not unescape backslash sequences in title/status/date/content; decide where unescaping belongs and define the accepted escape set.
-  - Warning policy: current parser returns stats only, while pages_list.py emits warnings; decide on shared thresholds and error vs warning behavior for oversized or malformed rows.
-  - File size heuristic: not implemented; decide whether to compare path.stat().st_size to max_lines * max_bytes and whether to warn or abort.
-  - Quickstart (pages_db.py): parse_dump(Path("db.out")) returns rows + stats; use ParseLimits for caps and build_title_index/build_id_index for lookups.
-  - Guardrails (pages_db.py): require mysql -e tab output with backslash escapes, keep strict_header/strict_columns enabled, and set max_lines/max_bytes for large dumps.
-  - Warning formatter: current warnings use local helpers in pages_list.py; decide whether to centralize formatting or keep per-command wording.
-  - Focus list whitespace: current parsing splits on commas/newlines, trims each entry, and preserves internal whitespace; decide whether to normalize internal whitespace.
-  - Focus list size: current parsing loads the full file into memory; decide whether streaming is needed for large lists.
-  - Focus list encoding: current parsing uses errors="replace"; decide whether strict or ignore is preferable for malformed bytes.
+  - ParseLimits caps max_lines and max_bytes; oversized lines are skipped and line limits set reached_limit.
+  - csv.reader mode is enabled via --csv with tab delimiter, QUOTE_NONE, and escapechar "\\".
+- Validation and stats (pages_db.py, pages_cli.py)
+  - Invalid ids, duplicate ids, unknown statuses, and invalid dates are counted.
+  - emit_db_warnings reports nonzero counts and limit warnings in CLI workflows.
+- Matching and selection (pages_db.py, pages_focus.py, pages_list.py)
+  - build_title_index/build_id_index retain lists per key.
+  - FocusEntry stores name, normalized key, and key length; exact match is preferred and prefix matching is optional.
+  - match_label chooses the longest prefix when enabled; pick_best selects by status then date.
+  - used_ids prevents duplicate emission in not --only output.
+- CLI outputs (pages_list.py)
+  - Default CSV columns are title/id/status/date; details adds focus and match columns.
+  - --details implies prefix matching and case-insensitive matching by default; --only cannot be combined with --details.
+- Text extraction (pages_text.py)
+  - clean_text strips tags/scripts/comments, decodes HTML entities, normalizes whitespace, and outputs ASCII.
+  - Missing focus matches emit warnings; output directories are created if needed; footer stripping is default.
+
+Improvements
+1) Add progress reporting for long runs (every N lines and matches).
+2) Report when --lines truncates input or when oversized lines are skipped outside CLI warnings.
+3) Use a prefix index or sorted list for details labeling to reduce O(R x F) scans.
+4) Type pages_list emit_row output with a TypedDict or small dataclass for clarity.
+
+Decisions
+1) Raw dump handling (embedded tabs/newlines) postponed; expect mysql -e tab output.
+2) Backslash unescaping policy postponed.
+3) Row integrity and validation remain warnings; dedupe and error escalation postponed; possible policies include keep first/keep best/aggregate focus names and suppressing prefix hits after exact matches.
+4) File size heuristic postponed.
+5) Focus list streaming postponed.
+6) Focus list encoding error policy postponed.
+
+Concerns
+1) Input brittleness: raw dumps with literal tabs/newlines will misparse unless using mysql -e or --csv (see Decisions 1 and 2).
+2) Warning visibility: parse_dump returns stats only; non-CLI callers must surface warnings explicitly (see Decision 3).
+3) Memory scale: rows and content live in memory; large dumps need limits or profiling (see Decisions 4 and 5).
+
+Pending
+- Improvements 1-4 are backlog candidates; no schedule set.
+
+TODO
+- None noted.

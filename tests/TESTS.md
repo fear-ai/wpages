@@ -58,10 +58,10 @@ pages_db.py unit tests:
 - parse_dump includes a use_csv test with an escaped delimiter (backslash + tab) and confirms the default split misparses that case.
 
 pages_focus.py unit tests:
-- tests/test_pages_focus.py covers load_focus_list dedupe behavior, build_rows_with_keys normalization, match_focus_entry selection, and match_label precedence.
+- tests/test_pages_focus.py covers load_focus_list dedupe behavior, build_rows_keys normalization, match_focus_entry selection, and match_label precedence.
 
 pages_cli.py unit tests:
-- tests/test_pages_cli.py covers limit validation, missing-file errors, parse errors, and strict vs non-strict warning emission via emit_db_warnings.
+- tests/test_pages_cli.py covers limit validation, common argument parsing, missing-file and unreadable-file errors, parse errors, and strict vs non-strict warning emission via emit_db_warnings.
 
 Test helpers:
 - tests/test_pages.py provides the shared CompactRunner and path setup used by the unit tests.
@@ -87,6 +87,7 @@ pages_list.py CLI tests (warnings and limits):
 - Oversized line skip: python3 pages_list.py --input tests/oversized.out --pages tests/sample.list --details -> stdout tests/details_oversized_expected.csv.
 - Permit header mismatch: python3 pages_list.py --input tests/alt_header.out --pages tests/sample.list --only --permit-header -> stdout tests/permit_header_expected.csv, stderr contains "Warning: Header error".
 - Permit malformed rows: python3 pages_list.py --input tests/malformed.out --pages tests/sample.list --permit-columns -> stdout tests/permit_columns_expected.csv, stderr contains "Warning: Malformed row count: 1".
+- Permit both: python3 pages_list.py --input tests/alt_header.out --pages tests/sample.list --only --permit -> stdout tests/permit_header_expected.csv, stderr contains "Warning: Header error".
 - Duplicate focus names: python3 pages_list.py --input tests/sample.out --pages tests/dups.list --only -> stderr contains "Warning: Duplicate page name skipped: Home".
 - Duplicate focus names (nocase): python3 pages_list.py --input tests/sample.out --pages tests/case_dups.list --only --nocase -> stderr contains "Warning: Duplicate page name skipped: contact".
 - Duplicate id warning: python3 pages_list.py --input tests/duplicate_id.out --pages tests/sample.list --only -> stderr contains "Warning: Duplicate id count: 1".
