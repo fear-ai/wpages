@@ -58,7 +58,7 @@ pages_db.py unit tests:
 - parse_dump includes a use_csv test with an escaped delimiter (backslash + tab) and confirms the default split misparses that case.
 
 pages_focus.py unit tests:
-- tests/test_pages_focus.py covers load_focus_list dedupe behavior, build_rows_keys normalization, match_focus_entry selection, and match_label precedence.
+- tests/test_pages_focus.py covers load_focus_list dedupe behavior, build_rows_keys normalization, match_entries selection, match_focus_entry selection, and match_label precedence.
 
 pages_cli.py unit tests:
 - tests/test_pages_cli.py covers limit validation, common argument parsing, missing-file and unreadable-file errors, parse errors, and strict vs non-strict warning emission via emit_db_warnings.

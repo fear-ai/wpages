@@ -17,8 +17,10 @@ Pain points:
 
 Requirements:
 - Expect mysql -e tab output; prefer escaping to avoid literal tabs/newlines.
+- Use --csv when dumps include backslash-escaped tabs/newlines; avoid --raw output.
 - pages.list accepts comma- or newline-separated names; whitespace is trimmed per entry.
 - Normalization: parsing normalizes header casing and line endings (CR/LF), but does not normalize column values or unescape backslash sequences. Matching normalizes focus names and titles consistently (case-sensitive or lowercased) for dedupe, indexing, prefix checks, and details labeling.
+- Strict parsing is the default; use --permit, --permit-header, or --permit-columns to continue past header mismatches or malformed rows.
 
 Terminology:
 - Column: database structure element (SQL/MySQL); column name is the header label (e.g., post_title).

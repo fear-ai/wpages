@@ -9,6 +9,7 @@ from pages_focus import (
     FocusEntry,
     build_rows_keys,
     load_focus_list,
+    match_entries,
     match_focus_entry,
     match_label,
 )
@@ -84,6 +85,26 @@ class TestPagesFocus(unittest.TestCase):
         label, focus = match_label(row, entries, case_sensitive=True, use_prefix=True)
         self.assertEqual(label, "prefix")
         self.assertEqual(focus, "Contac")
+
+    def test_match_entries_mixed(self) -> None:
+        rows = parse_dump(TESTS_DIR / "sample.out").rows
+        entries = [
+            FocusEntry(name="Home", key="home", key_len=4),
+            FocusEntry(name="Con", key="con", key_len=3),
+            FocusEntry(name="Missing", key="missing", key_len=7),
+        ]
+        matches = match_entries(
+            entries, rows, case_sensitive=False, use_prefix=True
+        )
+        self.assertEqual(len(matches), 3)
+        self.assertEqual(matches[0].label, "exact")
+        self.assertIsNotNone(matches[0].row)
+        self.assertEqual(matches[0].row.id, "1")
+        self.assertEqual(matches[1].label, "prefix")
+        self.assertIsNotNone(matches[1].row)
+        self.assertEqual(matches[1].row.id, "6")
+        self.assertEqual(matches[2].label, "none")
+        self.assertIsNone(matches[2].row)
 
 
 if __name__ == "__main__":

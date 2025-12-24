@@ -14,24 +14,26 @@ Implementation
 - Input formats and normalization (pages_db.py, pages_focus.py)
   - db.out uses a header line plus tab-delimited rows; header casing and line endings are normalized.
   - pages.list is split on commas/newlines, entries are trimmed, and internal whitespace is preserved.
+  - Duplicate focus names are skipped with warnings during CLI load.
 - Parsing and limits (pages_db.py, pages_cli.py)
   - parse_dump is keyword-only and returns ParseResult rows + stats.
   - ParseLimits caps max_lines and max_bytes; oversized lines are skipped and line limits set reached_limit.
   - csv.reader mode is enabled via --csv with tab delimiter, QUOTE_NONE, and escapechar "\\".
+  - CLI wrappers report missing/unreadable input or pages.list files; --permit relaxes strict header/column enforcement.
 - Validation and stats (pages_db.py, pages_cli.py)
   - Invalid ids, duplicate ids, unknown statuses, and invalid dates are counted.
   - emit_db_warnings reports nonzero counts and limit warnings in CLI workflows.
 - Matching and selection (pages_db.py, pages_focus.py, pages_list.py)
   - build_title_index/build_id_index retain lists per key.
   - FocusEntry stores name, normalized key, and key length; exact match is preferred and prefix matching is optional.
-  - match_label chooses the longest prefix when enabled; pick_best selects by status then date.
+  - match_entries centralizes focus matching; match_label chooses the longest prefix when enabled; pick_best selects by status then date.
   - used_ids prevents duplicate emission in not --only output.
 - CLI outputs (pages_list.py)
   - Default CSV columns are title/id/status/date; details adds focus and match columns.
   - --details implies prefix matching and case-insensitive matching by default; --only cannot be combined with --details.
 - Text extraction (pages_text.py)
   - clean_text strips tags/scripts/comments, decodes HTML entities, normalizes whitespace, and outputs ASCII.
-  - Missing focus matches emit warnings; output directories are created if needed; footer stripping is default.
+  - Missing focus matches emit warnings; output directories and file writes report errors; footer stripping is default.
 
 Improvements
 1) Add progress reporting for long runs (every N lines and matches).

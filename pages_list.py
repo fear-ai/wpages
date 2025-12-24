@@ -4,7 +4,6 @@ import csv
 import sys
 from pathlib import Path
 
-from pages_db import build_title_index
 from pages_cli import (
     add_common_args,
     emit_db_warnings,
@@ -13,7 +12,7 @@ from pages_cli import (
     parse_dump_checked,
     validate_limits,
 )
-from pages_focus import build_rows_keys, match_focus_entry, match_label
+from pages_focus import match_entries, match_label
 
 
 def emit_row(focus: str, row, match: str) -> dict:
@@ -103,22 +102,15 @@ def main() -> int:
 
     output = []
     rows = result.rows
-    title_index = build_title_index(rows, case_sensitive=case_sensitive)
-    rows_with_keys = build_rows_keys(rows, case_sensitive) if use_prefix else []
-
     if focus_entries:
-        for entry in focus_entries:
-            label, best = match_focus_entry(
-                entry,
-                title_index=title_index,
-                rows_with_keys=rows_with_keys,
-                use_prefix=use_prefix,
-            )
-            if best is not None:
-                output.append(emit_row(entry.name, best, label))
+        for match in match_entries(
+            focus_entries, rows, case_sensitive=case_sensitive, use_prefix=use_prefix
+        ):
+            if match.row is not None:
+                output.append(emit_row(match.entry.name, match.row, match.label))
                 continue
             if args.details:
-                output.append(emit_row(entry.name, None, "none"))
+                output.append(emit_row(match.entry.name, None, "none"))
 
     if not args.only:
         used_ids = {row["id"] for row in output if row["id"]}

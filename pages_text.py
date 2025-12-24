@@ -6,7 +6,6 @@ import sys
 import unicodedata
 from pathlib import Path
 
-from pages_db import build_title_index
 from pages_cli import (
     add_common_args,
     emit_db_warnings,
@@ -16,7 +15,7 @@ from pages_cli import (
     validate_limits,
     warn,
 )
-from pages_focus import build_rows_keys, match_focus_entry
+from pages_focus import match_entries
 
 
 def clean_text(text: str) -> str:
@@ -156,29 +155,22 @@ def main() -> int:
         return 1
 
     rows = result.rows
-    title_index = build_title_index(rows, case_sensitive=case_sensitive)
-    rows_with_keys = build_rows_keys(rows, case_sensitive) if use_prefix else []
-
-    for entry in focus_entries:
-        label, row = match_focus_entry(
-            entry,
-            title_index=title_index,
-            rows_with_keys=rows_with_keys,
-            use_prefix=use_prefix,
-        )
-        if row is None:
-            warn(f"Missing page: {entry.name}")
+    for match in match_entries(
+        focus_entries, rows, case_sensitive=case_sensitive, use_prefix=use_prefix
+    ):
+        if match.row is None:
+            warn(f"Missing page: {match.entry.name}")
             continue
-        cleaned = clean_text(row.content)
+        cleaned = clean_text(match.row.content)
         if not args.footer:
             cleaned = strip_footer(cleaned)
-        out_path = output_dir / safe_filename(entry.name)
+        out_path = output_dir / safe_filename(match.entry.name)
         try:
             out_path.write_text(cleaned, encoding="ascii", errors="ignore")
         except OSError as exc:
             error(f"output file could not be written: {out_path} ({exc})")
             return 1
-        print(f"Wrote {out_path} ({row.id}, {label})")
+        print(f"Wrote {out_path} ({match.row.id}, {match.label})")
 
     return 0
 
