@@ -36,6 +36,10 @@ Implementation
 - CLI outputs (pages_list.py)
   - Default CSV columns are title/id/status/date; details adds focus and match columns.
   - --details implies prefix matching and case-insensitive matching by default; --only cannot be combined with --details.
+- Filenames (pages_text.py, pages_content.py)
+  - safe_filename replaces "/" and trims whitespace but does not enforce length caps, reserved-name checks, or invalid character filtering.
+- Content cleaning (pages_content.py)
+  - clean_content suppresses repeated replacement characters to avoid long runs of replacement output.
 
 Improvements
 1) Add progress reporting for long runs (every N lines and matches).

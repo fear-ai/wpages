@@ -134,12 +134,13 @@ pages_content.py CLI tests:
 - HTML fixture: python3 pages_content.py --input tests/content.out --pages tests/content.list -> HTML.txt, Dirty.txt match pages_content expected outputs.
 - Table delimiter: python3 pages_content.py --table-delim tab uses tabs between table cells.
 - Replacement character: python3 pages_content.py --replace-char "?" replaces stripped characters in Dirty.txt.
+- Replacement character validation: python3 pages_content.py --replace-char "??" exits with an error.
 
 pages_text.py unit tests:
 - tests/test_pages_text.py covers script/style/comment stripping, entity decoding, MySQL escape decoding, whitespace handling, and ASCII output.
 
 pages_content.py unit tests:
-- tests/test_pages_content.py covers links, headings, lists, tables, MySQL escapes, and ASCII output.
+- tests/test_pages_content.py covers links, entities, heading/list structure (including nested lists), tables, MySQL escapes, block removal, and ASCII output.
 
 Test issues and gaps (pending):
 - No tests for raw dumps with embedded tabs/newlines (unsupported by line-based parsing).

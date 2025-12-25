@@ -331,6 +331,16 @@ run_text() {
   check_status pages_content_replace_char 0
   check_file pages_content_replace_char "${pages_content_replace_dir}/HTML.txt" "${TESTS_DIR}/pages_content_html_expected.txt"
   check_file pages_content_replace_char "${pages_content_replace_dir}/Dirty.txt" "${TESTS_DIR}/pages_content_dirty_replace_expected.txt"
+
+  pages_content_bad_replace_dir="${results}/pages_content_bad_replace"
+  run pages_content_replace_char_bad "$PYTHON_BIN" "${ROOT}/pages_content.py" \
+    --input "${TESTS_DIR}/content.out" \
+    --pages "${TESTS_DIR}/content.list" \
+    --output-dir "$pages_content_bad_replace_dir" \
+    --replace-char "??"
+  check_status pages_content_replace_char_bad 1
+  check_stderr_contains pages_content_replace_char_bad \
+    "Error: --replace-char must be a single ASCII character."
 }
 
 run_unit() {
