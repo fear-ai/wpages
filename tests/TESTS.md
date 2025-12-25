@@ -3,10 +3,12 @@ Tests for WPages tooling
 Applicability:
 - pages_list.py CLI tests validate stdout CSV and stderr warnings/errors; warnings are non-fatal (exit 0) and errors exit 1 with only stderr output.
 - pages_text.py CLI tests validate output .txt files per focus name.
+- pages_content.py CLI tests validate output .txt files per focus name and content formatting options.
 - pages_db.py unit tests validate parse_dump behavior and index helpers.
 - pages_focus.py unit tests validate focus list parsing and matching helpers.
 - pages_cli.py unit tests validate CLI helpers (limits, parsing errors, warning emission).
 - pages_text.py unit tests validate clean_text behavior.
+- pages_content.py unit tests validate clean_content behavior.
 
 Runner and conventions:
 - Run all tests: ./tests/run_tests.sh [--results PATH]
@@ -16,7 +18,7 @@ Runner and conventions:
 - Run pages_cli tests only: python tests/test_pages_cli.py
 - The runner writes stdout/stderr/status per test under tests/results_YYYYMMDD_HHMMSS*/; override with --results or RESULTS.
 - Diff files are always created for stdout/file comparisons; empty .diff means no differences and non-empty .diff holds the mismatch details.
-- Order is the script order in tests/run_tests.sh (basic CLI cases first, error cases later, unit tests last).
+- Order is the group order in tests/run_tests.sh; --group all runs unit tests first, then list and text CLI tests.
 
 Fixtures:
 - *.out files are small mysql tab dumps with a header row and tab-delimited column values.
@@ -41,6 +43,8 @@ Input fixtures:
 - tests/case_dups.list: Contact/contact to trigger case-insensitive duplicate warnings.
 - tests/empty.list: empty list file for --only error handling.
 - tests/invalid.list: commas/whitespace only (no names) to trigger --only empty-list error.
+- tests/content.out: HTML-heavy content and a row with non-ASCII/zero-width characters for pages_content tests.
+- tests/content.list: HTML/Dirty entries for pages_content CLI tests.
 
 Expected outputs:
 - tests/default_expected.csv: default run output (focus first, then all rows).
@@ -50,12 +54,16 @@ Expected outputs:
 - tests/pages_text_home_expected.txt: expected cleaned output for Home (sample.out).
 - tests/pages_text_about_expected.txt: expected cleaned output for About (sample.out).
 - tests/pages_text_contact_expected.txt: expected cleaned output for Contact (sample.out).
+- tests/pages_content_html_expected.txt: expected pages_content output for HTML (default comma delimiter).
+- tests/pages_content_dirty_expected.txt: expected pages_content output for Dirty with default removal.
+- tests/pages_content_html_tab_expected.txt: expected pages_content output for HTML with tab delimiter.
+- tests/pages_content_dirty_replace_expected.txt: expected pages_content output for Dirty with replacement character.
 
 Unit tests (by module):
 
 pages_db.py unit tests:
 - tests/test_pages_db.py covers empty file, bad header, malformed rows (strict vs non-strict), limits, and use_csv on a normal fixture.
-- parse_dump includes mixed newline handling (\r\n, \n\r, \n, \r) and strict_header=False coverage with header_mismatch stats.
+- parse_dump covers CRLF and LF newline handling and strict_header=False coverage with header_mismatch stats.
 - Coverage includes FileNotFoundError, invalid id/status/date counts, duplicate id count, index helpers, and pick_best.
 - parse_dump includes a use_csv test with an escaped delimiter (backslash + tab) and confirms the default split misparses that case.
 
@@ -120,8 +128,18 @@ pages_text.py CLI tests:
 - Output directory creation: python3 pages_text.py --output-dir <new_dir> creates the directory and writes expected files.
 - Output directory error: python3 pages_text.py --output-dir <file_path> exits with "output path is not a directory".
 
+pages_content.py CLI tests:
+- Basic extraction: python3 pages_content.py --input tests/sample.out --pages tests/sample.list --output-dir <tmp> -> Home.txt, About.txt, Contact.txt match tests/pages_text_*_expected.txt.
+- Output directory creation and error cases mirror pages_text.py.
+- HTML fixture: python3 pages_content.py --input tests/content.out --pages tests/content.list -> HTML.txt, Dirty.txt match pages_content expected outputs.
+- Table delimiter: python3 pages_content.py --table-delim tab uses tabs between table cells.
+- Replacement character: python3 pages_content.py --replace-char "?" replaces stripped characters in Dirty.txt.
+
 pages_text.py unit tests:
 - tests/test_pages_text.py covers script/style/comment stripping, entity decoding, MySQL escape decoding, whitespace handling, and ASCII output.
+
+pages_content.py unit tests:
+- tests/test_pages_content.py covers links, headings, lists, tables, MySQL escapes, and ASCII output.
 
 Test issues and gaps (pending):
 - No tests for raw dumps with embedded tabs/newlines (unsupported by line-based parsing).

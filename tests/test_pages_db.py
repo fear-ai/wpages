@@ -144,8 +144,8 @@ class TestPagesDB(unittest.TestCase):
                 b"id\tpost_title\tpost_content\tpost_status\tpost_date\r\n"
                 b"1\tA\tX\tpublish\t2023-01-01\n"
                 b"2\tB\tY\tdraft\t2023-01-02\r\n"
-                b"3\tC\tZ\tprivate\t2023-01-03\r"
-                b"4\tD\tW\tpublish\t2023-01-04\n\r"
+                b"3\tC\tZ\tprivate\t2023-01-03\n"
+                b"4\tD\tW\tpublish\t2023-01-04\r\n"
             )
             path.write_bytes(content)
             result = parse_dump(path)

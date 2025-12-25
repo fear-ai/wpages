@@ -244,14 +244,20 @@ run_list() {
 
 run_text() {
   pages_text_dir="${results}/pages_text"
-  run pages_text_basic "$PYTHON_BIN" "${ROOT}/pages_text.py"     --input "${TESTS_DIR}/sample.out"     --pages "${TESTS_DIR}/sample.list"     --output-dir "$pages_text_dir"
+  run pages_text_basic "$PYTHON_BIN" "${ROOT}/pages_text.py" \
+    --input "${TESTS_DIR}/sample.out" \
+    --pages "${TESTS_DIR}/sample.list" \
+    --output-dir "$pages_text_dir"
   check_status pages_text_basic 0
   check_file pages_text_basic "${pages_text_dir}/Home.txt" "${TESTS_DIR}/pages_text_home_expected.txt"
   check_file pages_text_basic "${pages_text_dir}/About.txt" "${TESTS_DIR}/pages_text_about_expected.txt"
   check_file pages_text_basic "${pages_text_dir}/Contact.txt" "${TESTS_DIR}/pages_text_contact_expected.txt"
 
   pages_text_nested="${results}/pages_text_nested/inner"
-  run pages_text_output_dir_nested "$PYTHON_BIN" "${ROOT}/pages_text.py"     --input "${TESTS_DIR}/sample.out"     --pages "${TESTS_DIR}/sample.list"     --output-dir "$pages_text_nested"
+  run pages_text_output_dir_nested "$PYTHON_BIN" "${ROOT}/pages_text.py" \
+    --input "${TESTS_DIR}/sample.out" \
+    --pages "${TESTS_DIR}/sample.list" \
+    --output-dir "$pages_text_nested"
   check_status pages_text_output_dir_nested 0
   check_file pages_text_output_dir_nested "${pages_text_nested}/Home.txt" "${TESTS_DIR}/pages_text_home_expected.txt"
   check_file pages_text_output_dir_nested "${pages_text_nested}/About.txt" "${TESTS_DIR}/pages_text_about_expected.txt"
@@ -259,9 +265,72 @@ run_text() {
 
   pages_text_file="${results}/pages_text_output_dir.txt"
   : > "$pages_text_file"
-  run pages_text_output_dir_file "$PYTHON_BIN" "${ROOT}/pages_text.py"     --input "${TESTS_DIR}/sample.out"     --pages "${TESTS_DIR}/sample.list"     --output-dir "$pages_text_file"
+  run pages_text_output_dir_file "$PYTHON_BIN" "${ROOT}/pages_text.py" \
+    --input "${TESTS_DIR}/sample.out" \
+    --pages "${TESTS_DIR}/sample.list" \
+    --output-dir "$pages_text_file"
   check_status pages_text_output_dir_file 1
-  check_stderr_contains pages_text_output_dir_file     "Error: output path is not a directory: ${pages_text_file}"
+  check_stderr_contains pages_text_output_dir_file \
+    "Error: output path is not a directory: ${pages_text_file}"
+
+  pages_content_dir="${results}/pages_content"
+  run pages_content_basic "$PYTHON_BIN" "${ROOT}/pages_content.py" \
+    --input "${TESTS_DIR}/sample.out" \
+    --pages "${TESTS_DIR}/sample.list" \
+    --output-dir "$pages_content_dir"
+  check_status pages_content_basic 0
+  check_file pages_content_basic "${pages_content_dir}/Home.txt" "${TESTS_DIR}/pages_text_home_expected.txt"
+  check_file pages_content_basic "${pages_content_dir}/About.txt" "${TESTS_DIR}/pages_text_about_expected.txt"
+  check_file pages_content_basic "${pages_content_dir}/Contact.txt" "${TESTS_DIR}/pages_text_contact_expected.txt"
+
+  pages_content_nested="${results}/pages_content_nested/inner"
+  run pages_content_output_dir_nested "$PYTHON_BIN" "${ROOT}/pages_content.py" \
+    --input "${TESTS_DIR}/sample.out" \
+    --pages "${TESTS_DIR}/sample.list" \
+    --output-dir "$pages_content_nested"
+  check_status pages_content_output_dir_nested 0
+  check_file pages_content_output_dir_nested "${pages_content_nested}/Home.txt" "${TESTS_DIR}/pages_text_home_expected.txt"
+  check_file pages_content_output_dir_nested "${pages_content_nested}/About.txt" "${TESTS_DIR}/pages_text_about_expected.txt"
+  check_file pages_content_output_dir_nested "${pages_content_nested}/Contact.txt" "${TESTS_DIR}/pages_text_contact_expected.txt"
+
+  pages_content_file="${results}/pages_content_output_dir.txt"
+  : > "$pages_content_file"
+  run pages_content_output_dir_file "$PYTHON_BIN" "${ROOT}/pages_content.py" \
+    --input "${TESTS_DIR}/sample.out" \
+    --pages "${TESTS_DIR}/sample.list" \
+    --output-dir "$pages_content_file"
+  check_status pages_content_output_dir_file 1
+  check_stderr_contains pages_content_output_dir_file \
+    "Error: output path is not a directory: ${pages_content_file}"
+
+  pages_content_html_dir="${results}/pages_content_html_default"
+  run pages_content_html_default "$PYTHON_BIN" "${ROOT}/pages_content.py" \
+    --input "${TESTS_DIR}/content.out" \
+    --pages "${TESTS_DIR}/content.list" \
+    --output-dir "$pages_content_html_dir"
+  check_status pages_content_html_default 0
+  check_file pages_content_html_default "${pages_content_html_dir}/HTML.txt" "${TESTS_DIR}/pages_content_html_expected.txt"
+  check_file pages_content_html_default "${pages_content_html_dir}/Dirty.txt" "${TESTS_DIR}/pages_content_dirty_expected.txt"
+
+  pages_content_tab_dir="${results}/pages_content_html_tab"
+  run pages_content_html_tab "$PYTHON_BIN" "${ROOT}/pages_content.py" \
+    --input "${TESTS_DIR}/content.out" \
+    --pages "${TESTS_DIR}/content.list" \
+    --output-dir "$pages_content_tab_dir" \
+    --table-delim tab
+  check_status pages_content_html_tab 0
+  check_file pages_content_html_tab "${pages_content_tab_dir}/HTML.txt" "${TESTS_DIR}/pages_content_html_tab_expected.txt"
+  check_file pages_content_html_tab "${pages_content_tab_dir}/Dirty.txt" "${TESTS_DIR}/pages_content_dirty_expected.txt"
+
+  pages_content_replace_dir="${results}/pages_content_replace"
+  run pages_content_replace_char "$PYTHON_BIN" "${ROOT}/pages_content.py" \
+    --input "${TESTS_DIR}/content.out" \
+    --pages "${TESTS_DIR}/content.list" \
+    --output-dir "$pages_content_replace_dir" \
+    --replace-char "?"
+  check_status pages_content_replace_char 0
+  check_file pages_content_replace_char "${pages_content_replace_dir}/HTML.txt" "${TESTS_DIR}/pages_content_html_expected.txt"
+  check_file pages_content_replace_char "${pages_content_replace_dir}/Dirty.txt" "${TESTS_DIR}/pages_content_dirty_replace_expected.txt"
 }
 
 run_unit() {
@@ -276,13 +345,16 @@ run_unit() {
 
   run pages_text "$PYTHON_BIN" "${TESTS_DIR}/test_pages_text.py"
   check_status pages_text 0
+
+  run pages_content "$PYTHON_BIN" "${TESTS_DIR}/test_pages_content.py"
+  check_status pages_content 0
 }
 
 case "$group" in
   all)
+    run_unit
     run_list
     run_text
-    run_unit
     ;;
   cli)
     run_list
