@@ -6,9 +6,11 @@ Applicability:
 - pages_db.py unit tests validate parse_dump behavior and index helpers.
 - pages_focus.py unit tests validate focus list parsing and matching helpers.
 - pages_cli.py unit tests validate CLI helpers (limits, parsing errors, warning emission).
+- pages_text.py unit tests validate clean_text behavior.
 
 Runner and conventions:
 - Run all tests: ./tests/run_tests.sh [--results PATH]
+- Run a group: ./tests/run_tests.sh --group all|cli|list|text|unit
 - Run pages_db tests only: python tests/test_pages_db.py
 - Run pages_focus tests only: python tests/test_pages_focus.py
 - Run pages_cli tests only: python tests/test_pages_cli.py
@@ -115,6 +117,11 @@ pages_list.py behavior notes:
 
 pages_text.py CLI tests:
 - Basic extraction: python3 pages_text.py --input tests/sample.out --pages tests/sample.list --output-dir <tmp> -> Home.txt, About.txt, Contact.txt match tests/pages_text_*_expected.txt.
+- Output directory creation: python3 pages_text.py --output-dir <new_dir> creates the directory and writes expected files.
+- Output directory error: python3 pages_text.py --output-dir <file_path> exits with "output path is not a directory".
+
+pages_text.py unit tests:
+- tests/test_pages_text.py covers script/style/comment stripping, entity decoding, MySQL escape decoding, whitespace handling, and ASCII output.
 
 Test issues and gaps (pending):
 - No tests for raw dumps with embedded tabs/newlines (unsupported by line-based parsing).

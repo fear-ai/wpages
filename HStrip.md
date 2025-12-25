@@ -105,6 +105,25 @@ expect the situation per dump or per page; confirm with `db.out`.
 - Notes/comments are under review for inline or sidecar representation.
 - Decision needed on exact fields, file naming, and encoding.
 
+### Schema and Charset
+- Typical WordPress defaults: post_title is TEXT (max 65,535 bytes), post_content
+  is LONGTEXT, post_name is varchar(200).
+- Charset is usually utf8mb4 (1-4 bytes per code point), so max characters vary.
+- Titles are free-form; slug rules apply to post_name, not post_title.
+- Verify actual schema and charset with SHOW CREATE TABLE wp_posts and
+  SHOW VARIABLES LIKE 'character_set%'.
+
+### Name and Filename Rules
+- Matching uses post_title values directly (case-controlled), not the slug.
+- WordPress slug functions: sanitize_title, sanitize_title_with_dashes,
+  wp_unique_post_slug.
+- Python references for conversion: django slugify, python-slugify,
+  werkzeug secure_filename, pathvalidate.
+- Linux filename limits are typically 255 bytes; invalid byte is NUL and the path
+  separator is '/'.
+- Windows disallows < > : " / \\ | ? * and reserved names like CON, PRN, AUX,
+  NUL, COM1.
+
 ### Open Questions
 - How strict should sanitization be for tables and lists?
 - How should UTF-8 characters be handled in non-HTML output?
@@ -118,6 +137,8 @@ expect the situation per dump or per page; confirm with `db.out`.
 - No import tooling yet for WP-CLI or editor workflows.
 - No validation or policy enforcement for links, images, or shortcodes.
 - No Unicode normalization or escaping policy implemented.
+- Filename hardening is not implemented; current naming only replaces '/' and
+  trims whitespace.
 
 ### Import Paths
 ### WP-CLI import
@@ -132,6 +153,10 @@ expect the situation per dump or per page; confirm with `db.out`.
 ### WordPress import tooling
 - Pros: aligns with WP expectations and preserves WP-specific formats.
 - Cons: less control and possible reintroduction of unsafe content.
+
+### Implementation References
+- pages_text.py behavior and improvement notes are documented in `PText.md`.
+- pages_content.py behavior is documented in `PContent.md`.
 
 ## Pending
 - Sample `db.out` to confirm likelihood ratings and adjust H/M/L.

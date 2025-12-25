@@ -52,3 +52,5 @@ Mitigations (usage and data selection):
 - Prefer `--noprefix` and `--case` for narrow searches; use `--details` only when exploring.
 - Use `--lines` and `--bytes` to cap work on unknown or large dumps.
 - Clean pages.list to remove duplicates and reduce overlap between focus names.
+
+Sanitization policies and considerations are in `HStrip.md`.

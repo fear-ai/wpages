@@ -2,6 +2,9 @@ Status for WPages tooling and tests
 
 Documents
 - WPages.md documents the WordPress page dump workflow, requirements, and usage guidance.
+- HStrip.md documents content sanitization policies and considerations.
+- PText.md documents pages_text.py cleaning behavior and improvements.
+- PContent.md documents pages_content.py extraction behavior.
 - Status.md tracks implementation state, decisions, and backlog items.
 - tests/TESTS.md documents fixture-based CLI tests and runner usage.
 
@@ -31,9 +34,6 @@ Implementation
 - CLI outputs (pages_list.py)
   - Default CSV columns are title/id/status/date; details adds focus and match columns.
   - --details implies prefix matching and case-insensitive matching by default; --only cannot be combined with --details.
-- Text extraction (pages_text.py)
-  - clean_text strips tags/scripts/comments, decodes HTML entities, normalizes whitespace, and outputs ASCII.
-  - Missing focus matches emit warnings; output directories and file writes report errors; footer stripping is default.
 
 Improvements
 1) Add progress reporting for long runs (every N lines and matches).
