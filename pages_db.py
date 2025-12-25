@@ -74,7 +74,7 @@ def parse_dump(
     stats = ParseStats()
     rows: list[Row] = []
     seen_ids: set[str] = set()
-    with path.open("r", encoding="utf-8", errors="replace") as handle:
+    with path.open("r", encoding="utf-8", errors="replace", newline="\n") as handle:
         header = handle.readline()
         if not header:
             raise ParseError(f"Empty input file {path}")

@@ -12,6 +12,7 @@ Document small, low-risk improvements to the current plain text cleaning path
 - Forces ASCII with NFKD normalization + `encode("ascii", "ignore")`.
 - Collapses blank lines and ensures a trailing newline.
 - Optional footer stripping ("Resources"/"Community").
+ - Parsing uses newline="\\n" to avoid splitting rows on bare \\r inside content.
 
 ## Proposed Improvements (Quick Changes)
 Each item is designed to fit within the existing regex-based approach.

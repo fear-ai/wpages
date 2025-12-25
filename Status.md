@@ -22,6 +22,8 @@ Implementation
   - parse_dump is keyword-only and returns ParseResult rows + stats.
   - ParseLimits caps max_lines and max_bytes; oversized lines are skipped and line limits set reached_limit.
   - csv.reader mode is enabled via --csv with tab delimiter, QUOTE_NONE, and escapechar "\\".
+  - parse_dump reads with newline="\\n" to avoid splitting rows on bare \\r when content includes CRLF.
+  - Reasoning: HTML collapses CR/LF to whitespace, Windows uses CRLF, and mysql -e dumps can include literal CRLF in post_content. Universal newline handling treats bare \\r as a line break, which split rows and caused malformed-row errors. Restricting newline handling to \\n prevents CR inside content from becoming a row delimiter.
   - CLI wrappers report missing/unreadable input or pages.list files; --permit relaxes strict header/column enforcement.
 - Validation and stats (pages_db.py, pages_cli.py)
   - Invalid ids, duplicate ids, unknown statuses, and invalid dates are counted.

@@ -113,14 +113,14 @@ def clean_content(text: str, *, table_delim: str, replace_char: str) -> str:
         text,
     )
     text = re.sub(r"(?i)</h[1-6]>", "\n", text)
-    text = re.sub(r"(?i)<li[^>]*>", "\n- ", text)
+    text = re.sub(r"(?i)<li[^>]*>", "- ", text)
     text = re.sub(r"(?i)</li>", "\n", text)
-    text = re.sub(r"(?i)</?(ul|ol)[^>]*>", "\n", text)
-    text = re.sub(r"(?i)<tr[^>]*>", "\n", text)
+    text = re.sub(r"(?i)</?(ul|ol)[^>]*>", "", text)
+    text = re.sub(r"(?i)<tr[^>]*>", "", text)
     text = re.sub(r"(?i)</tr>", "\n", text)
     text = re.sub(r"(?i)<t[dh][^>]*>", table_delim, text)
     text = re.sub(r"(?i)</t[dh]>", "", text)
-    text = re.sub(r"(?i)</?(table|thead|tbody|tfoot)[^>]*>", "\n", text)
+    text = re.sub(r"(?i)</?(table|thead|tbody|tfoot)[^>]*>", "", text)
     text = re.sub(
         r"(?i)</?(p|div|section|article|header|footer|blockquote|figure|figcaption|form|label|input|textarea|button|pre|code|hr)[^>]*>",
         "\n",
