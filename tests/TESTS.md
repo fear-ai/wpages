@@ -8,11 +8,11 @@ Applicability:
 - pages_focus.py unit tests validate focus list parsing and matching helpers.
 - pages_cli.py unit tests validate CLI helpers (limits, parsing errors, warning emission).
 - pages_text.py unit tests validate clean_text behavior.
-- pages_content.py unit tests validate clean_content behavior.
+- pages_content.py unit tests validate clean_content and clean_md behavior.
 
 Runner and conventions:
 - Run all tests: ./tests/run_tests.sh [--results PATH]
-- Run a group: ./tests/run_tests.sh --group all|cli|list|text|unit
+- Run a group: ./tests/run_tests.sh --group all|cli|list|text|content|unit
 - Run pages_db tests only: python tests/test_pages_db.py
 - Run pages_focus tests only: python tests/test_pages_focus.py
 - Run pages_cli tests only: python tests/test_pages_cli.py
@@ -58,6 +58,8 @@ Expected outputs:
 - tests/pages_content_dirty_expected.txt: expected pages_content output for Dirty with default removal.
 - tests/pages_content_html_tab_expected.txt: expected pages_content output for HTML with tab delimiter.
 - tests/pages_content_dirty_replace_expected.txt: expected pages_content output for Dirty with replacement character.
+- tests/pages_content_html.md: expected pages_content Markdown output for HTML.
+- tests/pages_content_row.md: expected pages_content Markdown output for Dirty.
 
 Unit tests (by module):
 
@@ -135,12 +137,15 @@ pages_content.py CLI tests:
 - Table delimiter: python3 pages_content.py --table-delim tab uses tabs between table cells.
 - Replacement character: python3 pages_content.py --replace-char "?" replaces stripped characters in Dirty.txt.
 - Replacement character validation: python3 pages_content.py --replace-char "??" exits with an error.
+- Markdown output: python3 pages_content.py --format markdown -> HTML.md, Dirty.md match Markdown expected outputs.
 
 pages_text.py unit tests:
 - tests/test_pages_text.py covers script/style/comment stripping, entity decoding, MySQL escape decoding, whitespace handling, and ASCII output.
 
 pages_content.py unit tests:
-- tests/test_pages_content.py covers links, entities, heading/list structure (including nested lists), tables, MySQL escapes, block removal, and ASCII output.
+- tests/test_pages_content.py covers links, entities, headings, lists (including nested lists), tables, MySQL escapes, block removal, ASCII output, and Markdown conversions.
+- Coverage highlights: text output link conversion (including titles and bad schemes), table delimiter handling, zero-width removal/replacement, Markdown headings/lists/tables (including ordered lists), image/link conversion (including titles and bad schemes), pre/code handling (including attributes and mixed nesting), and list/table malformed tag warnings.
+- Gaps and problems: no tests for malformed tags/unterminated attributes, attribute values with whitespace, bidi controls, or data URIs beyond scheme blocking; Markdown does not emit table header separators; regex parsing can mis-handle `>` inside quoted attributes.
 
 Test issues and gaps (pending):
 - No tests for raw dumps with embedded tabs/newlines (unsupported by line-based parsing).

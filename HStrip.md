@@ -39,6 +39,8 @@ expect the situation per dump or per page; confirm with `db.out`.
 - Output (H/M/H).
   - Readable and printable text output is required.
   - Markdown output is a strong want; HTML output is postponed.
+  - Preserve structure signals (headings, lists, tables, links, images) where practical.
+  - Keep link destinations visible in text output.
   - Preserve metadata such as HTML version or original source details.
   - Ensure compatibility with WP-CLI/WP code/plugins and the current editor.
 - Character set and non-printables (H/M/H).
@@ -49,6 +51,11 @@ expect the situation per dump or per page; confirm with `db.out`.
   - Replacement with space or "?" is configurable.
   - Suppress long sequences after 1-2 replacements.
   - Normalize odd CR/LF patterns while preserving intended spacing.
+- Whitespace normalization (H/M/H).
+  - Collapse repeated blank lines.
+  - Preserve whitespace inside code/pre blocks.
+  - Treat line breaks inside paragraphs and lists as structural, not layout.
+  - Avoid alignment-by-spaces or tabs in final output.
 
 ### Structure and media
 - Tables and lists (M/H/M).
@@ -58,6 +65,11 @@ expect the situation per dump or per page; confirm with `db.out`.
 - Links and images (M/H/H).
   - Validate link schemes; allow http/https/mailto as configured.
   - Decide handling for local or missing images (retain placeholder, drop, warn).
+- Tag handling (M/M/H).
+  - Use an allowlist of structural tags to preserve headings, lists, tables, and
+    code/pre blocks.
+  - Treat remaining tags as inline content or strip entirely.
+  - Ensure consistent handling for text vs Markdown output.
 
 ### Presentation and markup
 - Styles (M/H/H).
@@ -65,7 +77,35 @@ expect the situation per dump or per page; confirm with `db.out`.
   - Distinguish style attributes vs inline CSS blocks.
 - Shortcodes (L/M/L).
   - Identify WordPress shortcodes; preserve, remove, or translate with warnings.
-  - Shortcode support is deprioritized until need is confirmed.
+  - Shortcode support is postponed until need is confirmed.
+  - Attribute handling (H/M/H).
+  - Allowlist attributes for links/images (href, src, alt, title).
+  - Strip event handlers and risky attributes by default.
+  - Normalize or reject malformed attribute values.
+  - Attribute value charset considerations:
+    - UTF-8 and full Unicode appear in titles, alt text, and URLs.
+    - HTML entities and numeric entities may appear inside attribute values.
+    - Percent-encoded URLs are common and may mix with entities.
+    - Mixed encodings can appear in a single value (entities plus %xx).
+    - MySQL `-e` output can include literal backslashes and escapes.
+    - Percent-encoding issues to handle:
+      - Unescaped spaces and control characters.
+      - Invalid percent escapes (`%` not followed by two hex digits).
+      - Double-encoding (`%2520` representing `%20`).
+      - Mixed case percent escapes (`%2f` vs `%2F`) complicate comparisons.
+      - Inconsistent decoding order with entities and percent-encoding.
+  - Attribute parsing challenges:
+    - Quoted vs unquoted values; unquoted values cannot include spaces.
+    - Whitespace and newlines inside quoted values.
+    - `>` inside quoted values can truncate regex-based tag parsing.
+    - Unterminated quotes or malformed tags are common in raw exports.
+    - Attributes with `=` inside (JSON or query strings) are common.
+    - Backticks and control characters can appear in invalid or hostile input.
+    - Right-to-left markers can make URLs or filenames misleading.
+    - Long data URIs (`data:`) can bloat output.
+    - `javascript:` and `data:` URLs require explicit policy decisions.
+    - Invalid byte sequences can appear with encoding mismatches.
+  - Bad schemes to drop: `javascript`, `data`, `vbscript`, `file`, `blob`.
 
 ### Features
 - Sanitized output with strong safety controls.
@@ -92,13 +132,6 @@ expect the situation per dump or per page; confirm with `db.out`.
   external tooling and harder-to-control security details.
 
 ## Discussion
-### Discussion Guide
-- Design: capture requirements and features with decision status and rationale.
-- Sanitization tooling: list options, tradeoffs, and decision status.
-- Open Questions: record unresolved decisions and required evidence.
-- Gaps and Limitations: record current shortcomings and impact.
-- Import Paths: record options, readiness, and compatibility risks.
-
 ### Metadata
 - Preserve unambiguous HTML and WordPress designators for later culling.
 - Format and storage options: sidecar file, post meta, or inline header block.
@@ -124,22 +157,6 @@ expect the situation per dump or per page; confirm with `db.out`.
 - Windows disallows < > : " / \\ | ? * and reserved names like CON, PRN, AUX,
   NUL, COM1.
 
-### Open Questions
-- How strict should sanitization be for tables and lists?
-- How should UTF-8 characters be handled in non-HTML output?
-- What is the link and image handling policy?
-- How should unknown or invalid shortcodes be handled?
-- How far should style handling go beyond basic stripping?
-
-### Gaps and Limitations
-- No sanitizer pipeline or ruleset implemented yet.
-- No Markdown output path; only plain text output is defined.
-- No import tooling yet for WP-CLI or editor workflows.
-- No validation or policy enforcement for links, images, or shortcodes.
-- No Unicode normalization or escaping policy implemented.
-- Filename hardening is not implemented; current naming only replaces '/' and
-  trims whitespace.
-
 ### Import Paths
 ### WP-CLI import
 - Preferred: `wp post create --post_type=page --post_title=... --post_content="$(cat file)"`
@@ -154,9 +171,33 @@ expect the situation per dump or per page; confirm with `db.out`.
 - Pros: aligns with WP expectations and preserves WP-specific formats.
 - Cons: less control and possible reintroduction of unsafe content.
 
+### Open Questions
+- How strict should sanitization be for tables and lists?
+- How should UTF-8 characters be handled in non-HTML output?
+- What is the link and image handling policy?
+- How should unknown or invalid shortcodes be handled?
+- How far should style handling go beyond basic stripping?
+
+### Gaps and Limitations
+- No sanitizer pipeline or ruleset implemented yet.
+- No import tooling yet for WP-CLI or editor workflows.
+- No validation or policy enforcement for links, images, or shortcodes.
+- UTF-8 support and validation are delayed; ASCII-only output remains the default.
+- No Unicode normalization or escaping policy implemented.
+- Filename hardening is not implemented; current naming only replaces '/' and
+  trims whitespace.
+- Current table/list behavior and limitations are documented in `PContent.md`.
+
 ### Implementation References
 - pages_text.py behavior and improvement notes are documented in `PText.md`.
 - pages_content.py behavior is documented in `PContent.md`.
+
+### Discussion Guide
+- Design: capture requirements and features with decision status and rationale.
+- Sanitization tooling: list options, tradeoffs, and decision status.
+- Open Questions: record unresolved decisions and required evidence.
+- Gaps and Limitations: record current shortcomings and impact.
+- Import Paths: record options, readiness, and compatibility risks.
 
 ## Pending
 - Sample `db.out` to confirm likelihood ratings and adjust H/M/L.
@@ -164,10 +205,12 @@ expect the situation per dump or per page; confirm with `db.out`.
 - Review UTF-8 usage patterns and define acceptable output subset.
 - Survey link and image patterns to inform policy.
 - Identify shortcodes in use and their relevance.
+- Defer query parameter handling (tracking) and IDN/punycode normalization.
 
 ## TODO
-- Design sanitization rules and implement a strict, simple plain text output path.
-- Implement Markdown output with links, sections, and formatting preserved.
+- Define sanitization rules and apply them to the text output path.
+- Define attribute and URL scheme policies (href/src) and implement filtering.
+- Add tag allowlist rules for HTML-to-text/Markdown conversion.
 - Draft a sidecar metadata format and file naming scheme.
 - Draft a WP-CLI import script and CSV schema.
 - Add sanitization tool evaluation notes and sample config.

@@ -34,7 +34,7 @@ while [ "$#" -gt 0 ]; do
       shift
       ;;
     --help|-h)
-      echo "Usage: $0 [--results PATH] [--group all|cli|list|text|unit]"
+      echo "Usage: $0 [--results PATH] [--group all|cli|list|text|content|unit]"
       exit 0
       ;;
     *)
@@ -272,7 +272,9 @@ run_text() {
   check_status pages_text_output_dir_file 1
   check_stderr_contains pages_text_output_dir_file \
     "Error: output path is not a directory: ${pages_text_file}"
+}
 
+run_content() {
   pages_content_dir="${results}/pages_content"
   run pages_content_basic "$PYTHON_BIN" "${ROOT}/pages_content.py" \
     --input "${TESTS_DIR}/sample.out" \
@@ -341,6 +343,16 @@ run_text() {
   check_status pages_content_replace_char_bad 1
   check_stderr_contains pages_content_replace_char_bad \
     "Error: --replace-char must be a single ASCII character."
+
+  pages_content_md_dir="${results}/pages_content_markdown"
+  run pages_content_markdown "$PYTHON_BIN" "${ROOT}/pages_content.py" \
+    --input "${TESTS_DIR}/content.out" \
+    --pages "${TESTS_DIR}/content.list" \
+    --output-dir "$pages_content_md_dir" \
+    --format markdown
+  check_status pages_content_markdown 0
+  check_file pages_content_markdown "${pages_content_md_dir}/HTML.md" "${TESTS_DIR}/pages_content_html.md"
+  check_file pages_content_markdown "${pages_content_md_dir}/Dirty.md" "${TESTS_DIR}/pages_content_row.md"
 }
 
 run_unit() {
@@ -365,16 +377,21 @@ case "$group" in
     run_unit
     run_list
     run_text
+    run_content
     ;;
   cli)
     run_list
     run_text
+    run_content
     ;;
   list)
     run_list
     ;;
   text)
     run_text
+    ;;
+  content)
+    run_content
     ;;
   unit)
     run_unit
