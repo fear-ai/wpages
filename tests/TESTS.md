@@ -8,6 +8,7 @@ Applicability:
 - pages_focus.py unit tests validate focus list parsing and matching helpers.
 - pages_cli.py unit tests validate CLI helpers (limits, parsing errors, warning emission).
 - pages_text.py unit tests validate clean_text behavior.
+- pages_util.py unit tests validate shared helper behavior (decode_mysql_escapes, safe_filename, strip_footer).
 - pages_content.py unit tests validate clean_content and clean_md behavior.
 
 Runner and conventions:
@@ -19,12 +20,20 @@ Runner and conventions:
 - The runner writes stdout/stderr/status per test under tests/results_YYYYMMDD_HHMMSS*/; override with --results or RESULTS.
 - Diff files are always created for stdout/file comparisons; empty .diff means no differences and non-empty .diff holds the mismatch details.
 - Order is the group order in tests/run_tests.sh; --group all runs unit tests first, then list and text CLI tests.
+- results_YYYYMMDD_HHMMSS* directories are run artifacts and should be ignored.
+
+File types:
+- *.out: mysql tab dump fixtures with a header row and tab-delimited values.
+- *.list: pages.list fixtures (comma- or newline-separated names).
+- *_expected.csv: expected CSV output from pages_list.py.
+- *_expected.txt: expected text output from pages_text.py/pages_content.py.
+- *.md: expected Markdown output from pages_content.py (--format markdown).
 
 Fixtures:
 - *.out files are small mysql tab dumps with a header row and tab-delimited column values.
 - *.list files are pages.list entries (one per line or comma-separated) matched against post_title.
 - tests/no_pages_list/ and tests/empty_pages_list/ are working directories for missing/empty default pages.list.
-- Expected outputs live in tests/*_expected.csv and tests/pages_text_*_expected.txt.
+- Expected outputs live in tests/*_expected.csv, tests/pages_text_*_expected.txt, and tests/*.md for Markdown output.
 
 Input fixtures:
 - tests/sample.out: valid header and 8 rows; includes duplicate titles (Home), case variation (Contact/contact), and mixed statuses to exercise pick_best.
@@ -33,6 +42,8 @@ Input fixtures:
 - tests/oversized.out: valid header with one long post_content column value to trigger --bytes skipping.
 - tests/alt_header.out: header names out of order to exercise --permit-header.
 - tests/duplicate_id.out: valid header with a repeated id to trigger duplicate-id warnings.
+- tests/missing_row.out: valid header with a single row to exercise missing focus warnings.
+- tests/escapes.out: valid header with backslash-escaped tab/newline to exercise --notab/--nonl.
 - tests/sample.list: Home/About/Contact for basic exact matching.
 - tests/sample_glitch.list: Home/About/Contact with commas, whitespace, and blanks to test list parsing.
 - tests/prefix.list: Con/About to exercise prefix matching and ordering.
@@ -43,21 +54,29 @@ Input fixtures:
 - tests/case_dups.list: Contact/contact to trigger case-insensitive duplicate warnings.
 - tests/empty.list: empty list file for --only error handling.
 - tests/invalid.list: commas/whitespace only (no names) to trigger --only empty-list error.
+- tests/missing_page.list: focus list with one missing entry to trigger missing-page warnings.
 - tests/content.out: HTML-heavy content and a row with non-ASCII/zero-width characters for pages_content tests.
 - tests/content.list: HTML/Dirty entries for pages_content CLI tests.
+- tests/escapes.list: Escapes entry for escapes.out CLI tests.
 
 Expected outputs:
 - tests/default_expected.csv: default run output (focus first, then all rows).
 - tests/all_rows_expected.csv: output with empty focus list (all rows, input order).
 - tests/details_sample_expected.csv: details output for sample.out with sample.list.
 - tests/details_oversized_expected.csv: details output for oversized.out with sample.list.
+- tests/details_missing_expected.csv: details output for missing_row.out with missing_page.list.
 - tests/pages_text_home_expected.txt: expected cleaned output for Home (sample.out).
 - tests/pages_text_about_expected.txt: expected cleaned output for About (sample.out).
 - tests/pages_text_contact_expected.txt: expected cleaned output for Contact (sample.out).
+- tests/pages_text_dirty_utf_expected.txt: expected cleaned output for Dirty with --utf (content.out).
+- tests/pages_text_dirty_raw_expected.txt: expected cleaned output for Dirty with --raw (content.out).
 - tests/pages_content_html_expected.txt: expected pages_content output for HTML (default comma delimiter).
 - tests/pages_content_dirty_expected.txt: expected pages_content output for Dirty with default removal.
 - tests/pages_content_html_tab_expected.txt: expected pages_content output for HTML with tab delimiter.
 - tests/pages_content_dirty_replace_expected.txt: expected pages_content output for Dirty with replacement character.
+- tests/pages_content_dirty_utf_expected.txt: expected pages_content output for Dirty with --utf.
+- tests/pages_content_dirty_raw_expected.txt: expected pages_content output for Dirty with --raw.
+- tests/escapes_notab_nonl_expected.txt: expected output for Escapes with --notab/--nonl.
 - tests/pages_content_html.md: expected pages_content Markdown output for HTML.
 - tests/pages_content_row.md: expected pages_content Markdown output for Dirty.
 
@@ -103,6 +122,7 @@ pages_list.py CLI tests (warnings and limits):
 - Duplicate focus names: python3 pages_list.py --input tests/sample.out --pages tests/dups.list --only -> stderr contains "Warning: Duplicate page name skipped: Home".
 - Duplicate focus names (nocase): python3 pages_list.py --input tests/sample.out --pages tests/case_dups.list --only --nocase -> stderr contains "Warning: Duplicate page name skipped: contact".
 - Duplicate id warning: python3 pages_list.py --input tests/duplicate_id.out --pages tests/sample.list --only -> stderr contains "Warning: Duplicate id count: 1".
+- Missing focus warning: python3 pages_list.py --input tests/missing_row.out --pages tests/missing_page.list --details -> stderr contains "Warning: Missing page: Missing".
 - Line limit: python3 pages_list.py --input tests/sample.out --pages tests/sample.list --only --lines 2 -> stderr contains "Warning: Line limit reached at line 2."
 
 pages_list.py CLI tests (errors and missing lists):
@@ -129,21 +149,29 @@ pages_text.py CLI tests:
 - Basic extraction: python3 pages_text.py --input tests/sample.out --pages tests/sample.list --output-dir <tmp> -> Home.txt, About.txt, Contact.txt match tests/pages_text_*_expected.txt.
 - Output directory creation: python3 pages_text.py --output-dir <new_dir> creates the directory and writes expected files.
 - Output directory error: python3 pages_text.py --output-dir <file_path> exits with "output path is not a directory".
+- Missing focus warning: python3 pages_text.py --input tests/missing_row.out --pages tests/missing_page.list -> stderr contains "Warning: Missing page: Missing" and does not write Missing.txt.
+- UTF-8 output: python3 pages_text.py --input tests/content.out --pages tests/content.list --utf -> Dirty.txt matches tests/pages_text_dirty_utf_expected.txt.
+- Raw output: python3 pages_text.py --input tests/content.out --pages tests/content.list --raw -> Dirty.txt matches tests/pages_text_dirty_raw_expected.txt.
+- No tabs/newlines: python3 pages_text.py --input tests/escapes.out --pages tests/escapes.list --notab --nonl -> Escapes.txt matches tests/escapes_notab_nonl_expected.txt.
 
 pages_content.py CLI tests:
 - Basic extraction: python3 pages_content.py --input tests/sample.out --pages tests/sample.list --output-dir <tmp> -> Home.txt, About.txt, Contact.txt match tests/pages_text_*_expected.txt.
 - Output directory creation and error cases mirror pages_text.py.
 - HTML fixture: python3 pages_content.py --input tests/content.out --pages tests/content.list -> HTML.txt, Dirty.txt match pages_content expected outputs.
 - Table delimiter: python3 pages_content.py --table-delim tab uses tabs between table cells.
-- Replacement character: python3 pages_content.py --replace-char "?" replaces stripped characters in Dirty.txt.
-- Replacement character validation: python3 pages_content.py --replace-char "??" exits with an error.
+- Replacement character: python3 pages_content.py --replace "?" replaces stripped characters in Dirty.txt.
+- Replacement character validation: python3 pages_content.py --replace "??" exits with an error.
 - Markdown output: python3 pages_content.py --format markdown -> HTML.md, Dirty.md match Markdown expected outputs.
+- Missing focus warning: python3 pages_content.py --input tests/missing_row.out --pages tests/missing_page.list -> stderr contains "Warning: Missing page: Missing" and does not write Missing.txt.
+- UTF-8 output: python3 pages_content.py --input tests/content.out --pages tests/content.list --utf -> Dirty.txt matches tests/pages_content_dirty_utf_expected.txt.
+- Raw output: python3 pages_content.py --input tests/content.out --pages tests/content.list --raw -> Dirty.txt matches tests/pages_content_dirty_raw_expected.txt.
+- No tabs/newlines: python3 pages_content.py --input tests/escapes.out --pages tests/escapes.list --notab --nonl -> Escapes.txt matches tests/escapes_notab_nonl_expected.txt.
 
 pages_text.py unit tests:
-- tests/test_pages_text.py covers script/style/comment stripping, entity decoding, MySQL escape decoding, whitespace handling, and ASCII output.
+- tests/test_pages_text.py covers script/style/comment stripping, entity stripping, MySQL escape decoding, whitespace handling, character filtering, raw-mode preservation, and --notab/--nonl behavior.
 
 pages_content.py unit tests:
-- tests/test_pages_content.py covers links, entities, headings, lists (including nested lists), tables, MySQL escapes, block removal, ASCII output, and Markdown conversions.
+- tests/test_pages_content.py covers links, entities, headings, lists (including nested lists), tables, MySQL escapes, block removal, ASCII output, raw-mode preservation, --notab/--nonl behavior, and Markdown conversions.
 - Coverage highlights: text output link conversion (including titles and bad schemes), table delimiter handling, zero-width removal/replacement, Markdown headings/lists/tables (including ordered lists), image/link conversion (including titles and bad schemes), pre/code handling (including attributes and mixed nesting), and list/table malformed tag warnings.
 - Gaps and problems: no tests for malformed tags/unterminated attributes, attribute values with whitespace, bidi controls, or data URIs beyond scheme blocking; Markdown does not emit table header separators; regex parsing can mis-handle `>` inside quoted attributes.
 
@@ -153,4 +181,4 @@ Test issues and gaps (pending):
 - No tests for file size heuristics (not implemented).
 - No tests for focus list encoding error policy (currently errors="replace").
 - No tests for focus list streaming or large-file performance.
-- No tests for pages_text warnings when a focus name has no matching row.
+- (Filled) Missing-page warnings are now covered by pages_text_missing/pages_content_missing CLI tests.

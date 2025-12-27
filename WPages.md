@@ -20,6 +20,7 @@ Requirements:
 - Use --csv when dumps include backslash-escaped tabs/newlines; avoid --raw output.
 - pages.list accepts comma- or newline-separated names; whitespace is trimmed per entry.
 - Normalization: parsing normalizes header casing and line endings (CR/LF), but does not normalize column values or unescape backslash sequences. Matching normalizes focus names and titles consistently (case-sensitive or lowercased) for dedupe, indexing, prefix checks, and details labeling.
+- Line endings: parsing treats LF as the line break (newline="\\n"), trims trailing CR/LF, and strips leading CR on lines to tolerate LFCR. CR-only files are not supported; use LF or CRLF.
 - Strict parsing is the default; use --permit, --permit-header, or --permit-columns to continue past header mismatches or malformed rows.
 
 Terminology:

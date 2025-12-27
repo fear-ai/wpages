@@ -1,47 +1,55 @@
 #!/usr/bin/env python3
 import argparse
-import html
 import re
-import sys
-import unicodedata
 from pathlib import Path
 
 from pages_cli import (
     add_common_args,
+    add_filter_args,
     emit_db_warnings,
     error,
     load_focus_entries,
     parse_dump_checked,
+    resolve_filter_args,
     validate_limits,
     warn,
 )
+from pages_util import decode_mysql_escapes, filter_characters, safe_filename, strip_footer
 from pages_focus import match_entries
 
 
-def clean_text(text: str) -> str:
+def clean_text(
+    text: str,
+    *,
+    replace_char: str = " ",
+    keep_newlines: bool = True,
+    ascii_only: bool = True,
+    raw: bool = False,
+    keep_tabs: bool = False,
+) -> str:
     if not text:
         return ""
     # Decode literal escape sequences from mysql -e output.
-    text = text.replace("\\r", "\n").replace("\\n", "\n").replace("\\t", "\t")
+    text = decode_mysql_escapes(text)
 
     # Remove scripts, styles, and comments to avoid inline code.
     text = re.sub(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", text)
     text = re.sub(r"(?s)<!--.*?-->", " ", text)
 
-    # Convert common block/line break tags to newlines before stripping tags.
-    text = re.sub(r"(?i)<br\s*/?>", "\n", text)
-    text = re.sub(
-        r"(?i)</?(p|div|section|article|header|footer|h[1-6]|li|ul|ol|table|tbody|tr|td|th|blockquote|figure|figcaption|form|label|input|textarea|button)[^>]*>",
-        "\n",
-        text,
-    )
-
     # Strip all remaining tags.
     text = re.sub(r"(?s)<[^>]+>", " ", text)
 
-    # Decode HTML entities and normalize whitespace.
-    text = html.unescape(text).replace("\u00a0", " ")
+    # Strip HTML entities and normalize whitespace.
+    text = re.sub(r"&[A-Za-z0-9#]+;", " ", text)
     text = text.replace("\r\n", "\n").replace("\r", "\n")
+    if not raw:
+        text = filter_characters(
+            text,
+            replace_char,
+            keep_tabs=keep_tabs,
+            keep_newlines=keep_newlines,
+            ascii_only=ascii_only,
+        )
     lines = [re.sub(r"[ \t]+", " ", line).strip() for line in text.split("\n")]
 
     out_lines = []
@@ -56,32 +64,9 @@ def clean_text(text: str) -> str:
         out_lines.append(line)
 
     cleaned = "\n".join(out_lines).strip()
-    # Force ASCII output.
-    cleaned = (
-        unicodedata.normalize("NFKD", cleaned)
-        .encode("ascii", "ignore")
-        .decode("ascii")
-    )
     if cleaned:
         cleaned += "\n"
     return cleaned
-
-
-def strip_footer(text: str) -> str:
-    if not text:
-        return text
-    lines = text.splitlines()
-    for idx, line in enumerate(lines):
-        if line.strip().lower() in {"resources", "community"}:
-            stripped = "\n".join(lines[:idx]).rstrip()
-            return f"{stripped}\n" if stripped else ""
-    return text
-
-
-def safe_filename(name: str) -> str:
-    name = name.replace("/", "-")
-    name = re.sub(r"\s+", " ", name).strip()
-    return f"{name}.txt"
 
 
 def main() -> int:
@@ -98,6 +83,7 @@ def main() -> int:
         action="store_true",
         help="Keep footer-like sections (Resources/Community) instead of stripping them.",
     )
+    add_filter_args(parser)
     add_common_args(
         parser,
         prefix_default=False,
@@ -115,6 +101,13 @@ def main() -> int:
 
     use_prefix = args.use_prefix if args.use_prefix is not None else False
     case_sensitive = args.case_sensitive if args.case_sensitive is not None else True
+
+    filter_args = resolve_filter_args(args, keep_tabs_default=False)
+    if filter_args is None:
+        return 1
+    replace_char, ascii_only, keep_tabs, keep_newlines, raw = filter_args
+    output_encoding = "utf-8" if raw or not ascii_only else "ascii"
+    output_errors = "ignore" if output_encoding == "ascii" else "strict"
 
     pages_path = Path(args.pages)
     focus_entries = load_focus_entries(pages_path, case_sensitive)
@@ -161,12 +154,23 @@ def main() -> int:
         if match.row is None:
             warn(f"Missing page: {match.entry.name}")
             continue
-        cleaned = clean_text(match.row.content)
+        cleaned = clean_text(
+            match.row.content,
+            replace_char=replace_char,
+            keep_newlines=keep_newlines,
+            ascii_only=ascii_only,
+            raw=raw,
+            keep_tabs=keep_tabs,
+        )
         if not args.footer:
             cleaned = strip_footer(cleaned)
         out_path = output_dir / safe_filename(match.entry.name)
         try:
-            out_path.write_text(cleaned, encoding="ascii", errors="ignore")
+            out_path.write_text(
+                cleaned,
+                encoding=output_encoding,
+                errors=output_errors,
+            )
         except OSError as exc:
             error(f"output file could not be written: {out_path} ({exc})")
             return 1

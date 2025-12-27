@@ -153,6 +153,20 @@ class TestPagesDB(unittest.TestCase):
             for row in result.rows:
                 self.assertNotIn("\r", row.date)
 
+    def test_newline_lfcr(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "lfcr.out"
+            content = (
+                b"id\tpost_title\tpost_content\tpost_status\tpost_date\n\r"
+                b"1\tA\tX\tpublish\t2023-01-01\n\r"
+                b"2\tB\tY\tdraft\t2023-01-02\n\r"
+            )
+            path.write_bytes(content)
+            result = parse_dump(path)
+            self.assertEqual(len(result.rows), 2)
+            self.assertEqual(result.rows[0].id, "1")
+            self.assertEqual(result.rows[1].id, "2")
+
     def test_include_content_false(self) -> None:
         result = parse_dump(TESTS_DIR / "sample.out", include_content=False)
         self.assertEqual(result.rows[0].content, "")

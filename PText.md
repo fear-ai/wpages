@@ -7,9 +7,13 @@ Document small, low-risk improvements to the current plain text cleaning path
 ## Current Behavior Summary
 - Replaces MySQL literal escapes (`\\r`, `\\n`, `\\t`).
 - Strips scripts, styles, and HTML comments with regex.
-- Converts block tags to newlines, strips remaining tags.
-- Unescapes HTML entities and normalizes whitespace.
-- Forces ASCII with NFKD normalization + `encode("ascii", "ignore")`.
+- Strips all HTML tags (no structural preservation).
+- Strips HTML entities (replaces with spaces) and normalizes whitespace.
+- Filters control/zero-width/non-ASCII characters with default space replacement;
+  `--replace` changes the replacement character or deletes when used without a value.
+- `--raw` disables character filtering; `--utf` allows Unicode; `--nonl` removes
+  newlines; `--notab` disallows tabs (tabs are normalized to spaces regardless).
+- Output is ASCII by default; `--utf` or `--raw` switches output to UTF-8.
 - Collapses blank lines and ensures a trailing newline.
 - Optional footer stripping ("Resources"/"Community").
  - Parsing uses newline="\\n" to avoid splitting rows on bare \\r inside content.
@@ -57,7 +61,7 @@ Edge cases:
 Goal: remove confusing or unsafe characters explicitly.
 Approach:
 - Strip or replace control characters and zero-width characters.
-- Default to removal; allow `--replace-char` (e.g., `?` or space).
+- Default to removal; allow `--replace` (e.g., `?` or space).
 - Suppress long sequences after 1-2 replacements.
 Edge cases:
 - Preserve `\n` and `\t` before whitespace normalization.
@@ -85,7 +89,7 @@ Edge cases:
 
 ## Suggested Flag Additions
 - `--table-delim {tab,comma}` or `--table-delim "\t"`.
-- `--replace-char "?"` for suspicious/removed characters.
+- `--replace "?"` for suspicious/removed characters.
 - `--ascii-replace` to replace non-ASCII instead of removing.
 - `--keep-code` to preserve code block line breaks.
 

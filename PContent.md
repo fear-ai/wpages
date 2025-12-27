@@ -16,9 +16,9 @@ and stronger character handling while keeping the implementation lightweight.
    - Block tags to line breaks.
 4) Strip all remaining tags.
 5) Unescape HTML entities and normalize line endings.
-6) Filter control, zero-width, and non-ASCII characters.
+6) Filter control, zero-width, and non-ASCII characters (default replace with space).
 7) Normalize whitespace and collapse repeated blank lines.
-8) Write ASCII text with a trailing newline.
+8) Write ASCII text with a trailing newline (UTF-8 when `--utf` or `--raw`).
 
 ## Text Output Conversions
 
@@ -125,8 +125,13 @@ Implications:
 ## Character Filtering
 - Control characters are removed or replaced (except newline and tab).
 - Zero-width characters are removed or replaced.
-- Non-ASCII characters are removed by default; replacement is optional.
-- Replacement is suppressed after 1-2 consecutive replacements to avoid noise.
+- Non-ASCII characters are removed or replaced.
+- Default replacement uses a single space; `--replace CHAR` uses a different ASCII
+  character (0x21-0x7E); `--replace` without a value deletes instead.
+- `--raw` disables character filtering; `--utf` allows Unicode; `--notab` and
+  `--nonl` remove tabs or newlines from output. When `--utf` or `--raw` is used,
+  output is encoded as UTF-8 instead of ASCII.
+- Replacement is suppressed after consecutive replacements (one per run) to avoid noise.
 
 ## Whitespace Normalization
 - Line endings normalized to `\n`.
@@ -142,7 +147,12 @@ In addition to the shared options from `pages_cli.py`:
 - `--footer`: keep footer-like sections instead of stripping.
 - `--format {text,markdown}`: output format (default: text).
 - `--table-delim {comma,tab}`: table fallback delimiter (default: comma).
-- `--replace-char CHAR`: replace suspicious characters instead of removing.
+- `--replace [CHAR]`: replace suspicious characters (default: space). Use
+  `--replace` without a value to delete instead.
+- `--raw`: disable character filtering (control/zero-width/non-ASCII).
+- `--utf`: allow Unicode characters (do not drop bytes >= 0x7F).
+- `--notab`: disallow tab characters in output.
+- `--nonl`: disallow newline characters in output.
 
 ## Warnings
 - Missing page names in the focus list are reported as warnings.
@@ -171,7 +181,8 @@ In addition to the shared options from `pages_cli.py`:
 
 ## Comparison to pages_text.py
 - pages_text.py strips tags with regex, decodes HTML entities, normalizes
-  whitespace, and forces ASCII via NFKD + ascii encode.
+  whitespace, and filters control/zero-width/non-ASCII via `filter_characters`
+  with optional replacement.
 - pages_content.py adds structural conversions before tag stripping (links,
   headings, lists, tables) and explicit filtering for control, zero-width, and
   non-ASCII characters with optional replacement.

@@ -9,9 +9,11 @@ from test_pages import run_main
 
 from pages_cli import (
     add_common_args,
+    add_filter_args,
     emit_db_warnings,
     load_focus_entries,
     parse_dump_checked,
+    resolve_filter_args,
     validate_limits,
 )
 from pages_db import ParseResult, ParseStats
@@ -46,6 +48,44 @@ class TestPagesCLI(unittest.TestCase):
                 parsed = parser.parse_args(args)
                 for key, value in expected.items():
                     self.assertEqual(getattr(parsed, key), value)
+
+    def test_filter_args_defaults(self) -> None:
+        parser = argparse.ArgumentParser(add_help=False)
+        add_filter_args(parser)
+        parsed = parser.parse_args([])
+        resolved = resolve_filter_args(parsed, keep_tabs_default=False)
+        self.assertEqual(resolved, (" ", True, False, True, False))
+
+    def test_filter_args_replace_delete(self) -> None:
+        parser = argparse.ArgumentParser(add_help=False)
+        add_filter_args(parser)
+        parsed = parser.parse_args(["--replace"])
+        resolved = resolve_filter_args(parsed, keep_tabs_default=True)
+        self.assertEqual(resolved, ("", True, True, True, False))
+
+    def test_filter_args_replace_char(self) -> None:
+        parser = argparse.ArgumentParser(add_help=False)
+        add_filter_args(parser)
+        parsed = parser.parse_args(["--replace", "?"])
+        resolved = resolve_filter_args(parsed, keep_tabs_default=True)
+        self.assertEqual(resolved, ("?", True, True, True, False))
+
+    def test_filter_args_invalid_char(self) -> None:
+        parser = argparse.ArgumentParser(add_help=False)
+        add_filter_args(parser)
+        parsed = parser.parse_args(["--replace", "\t"])
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            resolved = resolve_filter_args(parsed, keep_tabs_default=True)
+        self.assertIsNone(resolved)
+        self.assertIn("--replace must be a printable ASCII character", stderr.getvalue())
+
+    def test_filter_args_flags(self) -> None:
+        parser = argparse.ArgumentParser(add_help=False)
+        add_filter_args(parser)
+        parsed = parser.parse_args(["--utf", "--raw", "--notab", "--nonl"])
+        resolved = resolve_filter_args(parsed, keep_tabs_default=True)
+        self.assertEqual(resolved, (" ", False, False, False, True))
 
     def test_limits_negative_lines(self) -> None:
         stderr = io.StringIO()

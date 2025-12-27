@@ -104,6 +104,15 @@ check_file() {
   fi
 }
 
+check_file_missing() {
+  name="$1"
+  path="$2"
+  if [ -e "$path" ]; then
+    echo "FAIL: $name expected no file at $path"
+    failures=$((failures + 1))
+  fi
+}
+
 check_stderr_contains() {
   name="$1"
   expected="$2"
@@ -157,6 +166,11 @@ run_list() {
   run prefix_overlap "$PYTHON_BIN" "${ROOT}/pages_list.py"     --input "${TESTS_DIR}/sample.out"     --pages "${TESTS_DIR}/prefix_overlap.list"     --details
   check_status prefix_overlap 0
   check_stdout prefix_overlap "${TESTS_DIR}/prefix_overlap_expected.csv"
+
+  run details_missing "$PYTHON_BIN" "${ROOT}/pages_list.py"     --input "${TESTS_DIR}/missing_row.out"     --pages "${TESTS_DIR}/missing_page.list"     --details
+  check_status details_missing 0
+  check_stdout details_missing "${TESTS_DIR}/details_missing_expected.csv"
+  check_stderr_contains details_missing "Warning: Missing page: Missing"
 
   run details_oversized "$PYTHON_BIN" "${ROOT}/pages_list.py"     --input "${TESTS_DIR}/oversized.out"     --pages "${TESTS_DIR}/sample.list"     --details
   check_status details_oversized 0
@@ -272,6 +286,44 @@ run_text() {
   check_status pages_text_output_dir_file 1
   check_stderr_contains pages_text_output_dir_file \
     "Error: output path is not a directory: ${pages_text_file}"
+
+  pages_text_missing_dir="${results}/pages_text_missing"
+  run pages_text_missing "$PYTHON_BIN" "${ROOT}/pages_text.py" \
+    --input "${TESTS_DIR}/missing_row.out" \
+    --pages "${TESTS_DIR}/missing_page.list" \
+    --output-dir "$pages_text_missing_dir"
+  check_status pages_text_missing 0
+  check_file pages_text_missing "${pages_text_missing_dir}/Home.txt" "${TESTS_DIR}/pages_text_home_expected.txt"
+  check_file_missing pages_text_missing "${pages_text_missing_dir}/Missing.txt"
+  check_stderr_contains pages_text_missing "Warning: Missing page: Missing"
+
+  pages_text_utf_dir="${results}/pages_text_utf"
+  run pages_text_utf "$PYTHON_BIN" "${ROOT}/pages_text.py" \
+    --input "${TESTS_DIR}/content.out" \
+    --pages "${TESTS_DIR}/content.list" \
+    --output-dir "$pages_text_utf_dir" \
+    --utf
+  check_status pages_text_utf 0
+  check_file pages_text_utf "${pages_text_utf_dir}/Dirty.txt" "${TESTS_DIR}/pages_text_dirty_utf_expected.txt"
+
+  pages_text_raw_dir="${results}/pages_text_raw"
+  run pages_text_raw "$PYTHON_BIN" "${ROOT}/pages_text.py" \
+    --input "${TESTS_DIR}/content.out" \
+    --pages "${TESTS_DIR}/content.list" \
+    --output-dir "$pages_text_raw_dir" \
+    --raw
+  check_status pages_text_raw 0
+  check_file pages_text_raw "${pages_text_raw_dir}/Dirty.txt" "${TESTS_DIR}/pages_text_dirty_raw_expected.txt"
+
+  pages_text_notab_nonl_dir="${results}/pages_text_notab_nonl"
+  run pages_text_notab_nonl "$PYTHON_BIN" "${ROOT}/pages_text.py" \
+    --input "${TESTS_DIR}/escapes.out" \
+    --pages "${TESTS_DIR}/escapes.list" \
+    --output-dir "$pages_text_notab_nonl_dir" \
+    --notab \
+    --nonl
+  check_status pages_text_notab_nonl 0
+  check_file pages_text_notab_nonl "${pages_text_notab_nonl_dir}/Escapes.txt" "${TESTS_DIR}/escapes_notab_nonl_expected.txt"
 }
 
 run_content() {
@@ -305,6 +357,16 @@ run_content() {
   check_stderr_contains pages_content_output_dir_file \
     "Error: output path is not a directory: ${pages_content_file}"
 
+  pages_content_missing_dir="${results}/pages_content_missing"
+  run pages_content_missing "$PYTHON_BIN" "${ROOT}/pages_content.py" \
+    --input "${TESTS_DIR}/missing_row.out" \
+    --pages "${TESTS_DIR}/missing_page.list" \
+    --output-dir "$pages_content_missing_dir"
+  check_status pages_content_missing 0
+  check_file pages_content_missing "${pages_content_missing_dir}/Home.txt" "${TESTS_DIR}/pages_text_home_expected.txt"
+  check_file_missing pages_content_missing "${pages_content_missing_dir}/Missing.txt"
+  check_stderr_contains pages_content_missing "Warning: Missing page: Missing"
+
   pages_content_html_dir="${results}/pages_content_html_default"
   run pages_content_html_default "$PYTHON_BIN" "${ROOT}/pages_content.py" \
     --input "${TESTS_DIR}/content.out" \
@@ -329,7 +391,7 @@ run_content() {
     --input "${TESTS_DIR}/content.out" \
     --pages "${TESTS_DIR}/content.list" \
     --output-dir "$pages_content_replace_dir" \
-    --replace-char "?"
+    --replace "?"
   check_status pages_content_replace_char 0
   check_file pages_content_replace_char "${pages_content_replace_dir}/HTML.txt" "${TESTS_DIR}/pages_content_html_expected.txt"
   check_file pages_content_replace_char "${pages_content_replace_dir}/Dirty.txt" "${TESTS_DIR}/pages_content_dirty_replace_expected.txt"
@@ -339,10 +401,10 @@ run_content() {
     --input "${TESTS_DIR}/content.out" \
     --pages "${TESTS_DIR}/content.list" \
     --output-dir "$pages_content_bad_replace_dir" \
-    --replace-char "??"
+    --replace "??"
   check_status pages_content_replace_char_bad 1
   check_stderr_contains pages_content_replace_char_bad \
-    "Error: --replace-char must be a single ASCII character."
+    "Error: --replace must be a single ASCII character."
 
   pages_content_md_dir="${results}/pages_content_markdown"
   run pages_content_markdown "$PYTHON_BIN" "${ROOT}/pages_content.py" \
@@ -353,6 +415,34 @@ run_content() {
   check_status pages_content_markdown 0
   check_file pages_content_markdown "${pages_content_md_dir}/HTML.md" "${TESTS_DIR}/pages_content_html.md"
   check_file pages_content_markdown "${pages_content_md_dir}/Dirty.md" "${TESTS_DIR}/pages_content_row.md"
+
+  pages_content_utf_dir="${results}/pages_content_utf"
+  run pages_content_utf "$PYTHON_BIN" "${ROOT}/pages_content.py" \
+    --input "${TESTS_DIR}/content.out" \
+    --pages "${TESTS_DIR}/content.list" \
+    --output-dir "$pages_content_utf_dir" \
+    --utf
+  check_status pages_content_utf 0
+  check_file pages_content_utf "${pages_content_utf_dir}/Dirty.txt" "${TESTS_DIR}/pages_content_dirty_utf_expected.txt"
+
+  pages_content_raw_dir="${results}/pages_content_raw"
+  run pages_content_raw "$PYTHON_BIN" "${ROOT}/pages_content.py" \
+    --input "${TESTS_DIR}/content.out" \
+    --pages "${TESTS_DIR}/content.list" \
+    --output-dir "$pages_content_raw_dir" \
+    --raw
+  check_status pages_content_raw 0
+  check_file pages_content_raw "${pages_content_raw_dir}/Dirty.txt" "${TESTS_DIR}/pages_content_dirty_raw_expected.txt"
+
+  pages_content_notab_nonl_dir="${results}/pages_content_notab_nonl"
+  run pages_content_notab_nonl "$PYTHON_BIN" "${ROOT}/pages_content.py" \
+    --input "${TESTS_DIR}/escapes.out" \
+    --pages "${TESTS_DIR}/escapes.list" \
+    --output-dir "$pages_content_notab_nonl_dir" \
+    --notab \
+    --nonl
+  check_status pages_content_notab_nonl 0
+  check_file pages_content_notab_nonl "${pages_content_notab_nonl_dir}/Escapes.txt" "${TESTS_DIR}/escapes_notab_nonl_expected.txt"
 }
 
 run_unit() {
@@ -367,6 +457,9 @@ run_unit() {
 
   run pages_text "$PYTHON_BIN" "${TESTS_DIR}/test_pages_text.py"
   check_status pages_text 0
+
+  run pages_util "$PYTHON_BIN" "${TESTS_DIR}/test_pages_util.py"
+  check_status pages_util 0
 
   run pages_content "$PYTHON_BIN" "${TESTS_DIR}/test_pages_content.py"
   check_status pages_content 0

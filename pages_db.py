@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import csv
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-import csv
 
 EXPECTED_HEADER = ["id", "post_title", "post_content", "post_status", "post_date"]
 KNOWN_STATUSES = (
@@ -78,6 +78,7 @@ def parse_dump(
         header = handle.readline()
         if not header:
             raise ParseError(f"Empty input file {path}")
+        header = header.lstrip("\r")
         header_cols = [col.strip().lower() for col in header.rstrip("\r\n").split("\t")]
         stats.header_columns = header_cols
         mismatch = header_cols != EXPECTED_HEADER
@@ -87,6 +88,8 @@ def parse_dump(
 
         for line_no, line in enumerate(handle, start=2):
             line = line.rstrip("\r\n")
+            if line.startswith("\r"):
+                line = line.lstrip("\r")
             if not line:
                 continue
             if limits.max_lines and stats.read_lines >= limits.max_lines:

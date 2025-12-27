@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple, TypeAlias
+
 from pages_db import Row, build_title_index, pick_best
 
 

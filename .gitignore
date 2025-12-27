@@ -17,6 +17,8 @@ footers/
 # Custom Project Patterns
 # ============================================================================
 # Add your project-specific patterns below this line
+tests/results_*/
+tests/results_*
 
 # ============================================================================
 # Version Control

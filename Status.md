@@ -13,39 +13,32 @@ Environment
 - CLI scripts run locally, read/write the filesystem, and write results to stdout/stderr.
 - No network access or external services are required.
 
-Implementation
-- Input formats and normalization (pages_db.py, pages_focus.py)
-  - db.out uses a header line plus tab-delimited rows; header casing and line endings are normalized.
-  - pages.list is split on commas/newlines, entries are trimmed, and internal whitespace is preserved.
-  - Duplicate focus names are skipped with warnings during CLI load.
-- Parsing and limits (pages_db.py, pages_cli.py)
-  - parse_dump is keyword-only and returns ParseResult rows + stats.
-  - ParseLimits caps max_lines and max_bytes; oversized lines are skipped and line limits set reached_limit.
-  - csv.reader mode is enabled via --csv with tab delimiter, QUOTE_NONE, and escapechar "\\".
-  - parse_dump reads with newline="\\n" to avoid splitting rows on bare \\r when content includes CRLF.
-  - Reasoning: HTML collapses CR/LF to whitespace, Windows uses CRLF, and mysql -e dumps can include literal CRLF in post_content. Universal newline handling treats bare \\r as a line break, which split rows and caused malformed-row errors. Restricting newline handling to \\n prevents CR inside content from becoming a row delimiter.
-  - CLI wrappers report missing/unreadable input or pages.list files; --permit relaxes strict header/column enforcement.
-- Validation and stats (pages_db.py, pages_cli.py)
-  - Invalid ids, duplicate ids, unknown statuses, and invalid dates are counted.
-  - emit_db_warnings reports nonzero counts and limit warnings in CLI workflows.
-- Matching and selection (pages_db.py, pages_focus.py, pages_list.py)
-  - build_title_index/build_id_index retain lists per key.
-  - FocusEntry stores name, normalized key, and key length; exact match is preferred and prefix matching is optional.
-  - match_entries centralizes focus matching; match_label chooses the longest prefix when enabled; pick_best selects by status then date.
-  - used_ids prevents duplicate emission in not --only output.
-- CLI outputs (pages_list.py)
-  - Default CSV columns are title/id/status/date; details adds focus and match columns.
-  - --details implies prefix matching and case-insensitive matching by default; --only cannot be combined with --details.
-- Filenames (pages_text.py, pages_content.py)
-  - safe_filename replaces "/" and trims whitespace but does not enforce length caps, reserved-name checks, or invalid character filtering.
-- Content cleaning (pages_content.py)
-  - clean_content suppresses repeated replacement characters to avoid long runs of replacement output.
+Progress
+- pages_content.py now supports Markdown output, ordered list numbering, link/image titles, scheme blocking, and list/table structure warnings.
+- Tests split into list/text/content/unit groups, with new content-focused coverage in tests/test_pages_content.py.
 
-Improvements
-1) Add progress reporting for long runs (every N lines and matches).
-2) Report when --lines truncates input or when oversized lines are skipped outside CLI warnings.
-3) Use a prefix index or sorted list for details labeling to reduce O(R x F) scans.
-4) Type pages_list emit_row output with a TypedDict or small dataclass for clarity.
+Implementation
+- pages_db.py: parse_dump returns rows + stats with limits, csv mode, and newline="\\n" to avoid CR splitting; trims trailing CR/LF and strips leading CR to tolerate LFCR; warnings emitted via pages_cli.py.
+- pages_focus.py: focus list parsing and match_entries encapsulate matching behavior; warnings on duplicate focus names.
+- pages_list.py: CLI list output and matching behavior documented in WPages.md.
+- pages_util.py: shared helpers for output paths and text cleanup (decode_mysql_escapes, strip_footer, and safe_filename with Windows-safe ASCII rules, 255-byte cap, and `_N` suffixing).
+- pages_text.py: legacy cleaner; strips tags/entities, filters control/zero-width/non-ASCII with default space replacement (overridable via --replace, plus --raw/--utf/--nonl/--notab), and writes ASCII by default (UTF-8 for --utf/--raw); behavior documented in PText.md.
+- pages_content.py: text/Markdown extraction, scheme blocking, ordered lists, and structural warnings; character filtering replaces control/zero-width/non-ASCII with space by default or `--replace` (suppressed per run); behavior documented in PContent.md.
+- tests: runner groups are documented in tests/TESTS.md.
+
+Module partitioning
+- pages_db.py: dump parsing, header/row validation, size/line limits, parse stats.
+- pages_focus.py: focus list parsing, dedupe, normalization, and matching logic.
+- pages_cli.py: shared CLI options, input validation, error/warning emission.
+- pages_list.py: list-mode CLI output (CSV) and focus/details listing behavior.
+- pages_text.py: plain text extraction policy and output files.
+- pages_content.py: structure-aware extraction and Markdown/text output policy.
+- pages_util.py: shared output-layer helpers (escape decoding, footer stripping, filenames).
+
+Filenames
+- safe_filename applies Windows-safe ASCII rules: NFKD + drop non-ASCII, invalid
+  character replacement, whitespace/dot trimming, 255-byte cap (ext preserved),
+  reserved-name suffixing, and `_N` collision suffixes.
 
 Decisions
 1) Raw dump handling (embedded tabs/newlines) postponed; expect mysql -e tab output.
@@ -59,9 +52,20 @@ Concerns
 1) Input brittleness: raw dumps with literal tabs/newlines will misparse unless using mysql -e or --csv (see Decisions 1 and 2).
 2) Warning visibility: parse_dump returns stats only; non-CLI callers must surface warnings explicitly (see Decision 3).
 3) Memory scale: rows and content live in memory; large dumps need limits or profiling (see Decisions 4 and 5).
+4) Character removal/replacement is silent: no counts or warnings for stripped tags, script/style removal, ASCII drops, or --replace usage; defaults still drop non-ASCII. pages_text writes ASCII with errors="ignore" unless `--utf/--raw` (UTF-8), so data loss can be silent.
 
 Pending
-- Improvements 1-4 are backlog candidates; no schedule set.
+- Raw dump/backslash unescaping decisions (see Decisions 1-2).
+- File size heuristics and streaming approach (see Decisions 4-5).
+- Focus list encoding error policy (see Decision 6).
+- URL normalization policy beyond scheme blocking (see HStrip.md).
+ - Removal/replacement reporting policy (counts vs warnings) for sanitization steps (see HStrip.md).
+- Revisit filename edge-case test coverage (trailing dots/spaces, long extensions, empty-base suffixing).
+- Revisit UTF-8 + Markdown output tests (CLI and unit coverage).
+- Revisit sharing HTML/entity stripping between pages_text.py and pages_content.py.
 
 TODO
-- None noted.
+- Add progress reporting for long runs (every N lines and matches).
+- Report when --lines truncates input or when oversized lines are skipped outside CLI warnings.
+- Use a prefix index or sorted list for details labeling to reduce O(R x F) scans.
+- Type pages_list emit_row output with a TypedDict or small dataclass for clarity.

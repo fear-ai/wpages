@@ -84,6 +84,13 @@ class TestPagesContent(unittest.TestCase):
         text = "Caf\u00e9"
         self.assertEqual(clean_content(text, table_delim=",", replace_char=""), "Cafe\n")
 
+    def test_clean_content_utf(self) -> None:
+        text = "Caf\u00e9"
+        self.assertEqual(
+            clean_content(text, table_delim=",", replace_char=" ", ascii_only=False),
+            "Caf\u00e9\n",
+        )
+
     def test_clean_content_zero_width(self) -> None:
         text = "A\u200bB"
         self.assertEqual(clean_content(text, table_delim=",", replace_char=""), "AB\n")
@@ -91,6 +98,26 @@ class TestPagesContent(unittest.TestCase):
     def test_clean_content_replace_char(self) -> None:
         text = "A\u200bB"
         self.assertEqual(clean_content(text, table_delim=",", replace_char="?"), "A?B\n")
+
+    def test_clean_content_raw_keeps_zero_width(self) -> None:
+        text = "Caf\u00e9\u200b"
+        self.assertEqual(
+            clean_content(text, table_delim=",", replace_char=" ", raw=True),
+            "Caf\u00e9\u200b\n",
+        )
+
+    def test_clean_content_notab_nonl_delete(self) -> None:
+        text = "A\tB\nC"
+        self.assertEqual(
+            clean_content(
+                text,
+                table_delim=",",
+                replace_char="",
+                keep_tabs=False,
+                keep_newlines=False,
+            ),
+            "ABC\n",
+        )
 
     def test_clean_content_nested_lists(self) -> None:
         text = "<ul><li>One<ul><li>Sub</li></ul></li><li>Two</li></ul>"

@@ -8,11 +8,11 @@ from pages_text import clean_text
 class TestPagesText(unittest.TestCase):
     def test_clean_text_strips_blocks(self) -> None:
         text = "<script>x</script><style>y</style><!--c--><div>Hi<br>There</div>"
-        self.assertEqual(clean_text(text), "Hi\nThere\n")
+        self.assertEqual(clean_text(text), "Hi There\n")
 
     def test_clean_text_entities(self) -> None:
         text = "A&nbsp;B &amp; C"
-        self.assertEqual(clean_text(text), "A B & C\n")
+        self.assertEqual(clean_text(text), "A B C\n")
 
     def test_clean_text_mysql_escapes(self) -> None:
         text = "Line1\\nLine2\\tX"
@@ -21,6 +21,25 @@ class TestPagesText(unittest.TestCase):
     def test_clean_text_ascii(self) -> None:
         text = "Caf\u00e9"
         self.assertEqual(clean_text(text), "Cafe\n")
+
+    def test_clean_text_utf(self) -> None:
+        text = "Caf\u00e9"
+        self.assertEqual(clean_text(text, ascii_only=False), "Caf\u00e9\n")
+
+    def test_clean_text_raw(self) -> None:
+        text = "Caf\u00e9"
+        self.assertEqual(clean_text(text, raw=True), "Caf\u00e9\n")
+
+    def test_clean_text_raw_keeps_zero_width(self) -> None:
+        text = "<b>Caf\u00e9\u200b</b>"
+        self.assertEqual(clean_text(text, raw=True), "Caf\u00e9\u200b\n")
+
+    def test_clean_text_notab_nonl_delete(self) -> None:
+        text = "A\tB\nC"
+        self.assertEqual(
+            clean_text(text, replace_char="", keep_tabs=False, keep_newlines=False),
+            "ABC\n",
+        )
 
 
 if __name__ == "__main__":

@@ -2,22 +2,22 @@
 import argparse
 import html
 import re
-import sys
-import unicodedata
 from pathlib import Path
 
 from pages_cli import (
     add_common_args,
+    add_filter_args,
     emit_db_warnings,
     error,
     load_focus_entries,
     parse_dump_checked,
+    resolve_filter_args,
     validate_limits,
     warn,
 )
+from pages_util import decode_mysql_escapes, filter_characters, safe_filename, strip_footer
 from pages_focus import match_entries
 
-ZERO_WIDTH = {"\u200b", "\u200c", "\u200d", "\ufeff"}
 ANCHOR_RE = re.compile(r"(?is)<a\b([^>]*)>(.*?)</a>")
 IMG_RE = re.compile(r"(?is)<img\b[^>]*>")
 BAD_SCHEMES = {"javascript", "data", "vbscript", "file", "blob"}
@@ -148,33 +148,6 @@ def _number_ordered_lists(text: str) -> str:
     return re.sub(r"(?is)<ol\b[^>]*>(.*?)</ol\s*>", replace_block, text)
 
 
-def _filter_characters(text: str, replace_char: str) -> str:
-    normalized = unicodedata.normalize("NFKD", text)
-    out: list[str] = []
-    last_replaced = False
-    for ch in normalized:
-        if ch == "\n":
-            out.append("\n")
-            last_replaced = False
-            continue
-        if ch == "\t":
-            out.append("\t")
-            last_replaced = False
-            continue
-        code = ord(ch)
-        is_control = code < 32 or code == 127
-        is_zero_width = ch in ZERO_WIDTH
-        if is_control or is_zero_width or code >= 128:
-            if replace_char:
-                if not last_replaced:
-                    out.append(replace_char)
-                    last_replaced = True
-            continue
-        out.append(ch)
-        last_replaced = False
-    return "".join(out)
-
-
 def _normalize_lines(text: str, table_delim: str) -> str:
     lines = text.split("\n")
     out_lines: list[str] = []
@@ -229,11 +202,20 @@ def _normalize_markdown(text: str) -> str:
     return cleaned
 
 
-def clean_content(text: str, *, table_delim: str, replace_char: str) -> str:
+def clean_content(
+    text: str,
+    *,
+    table_delim: str,
+    replace_char: str,
+    keep_tabs: bool = True,
+    keep_newlines: bool = True,
+    ascii_only: bool = True,
+    raw: bool = False,
+) -> str:
     if not text:
         return ""
     # Decode literal escape sequences from mysql -e output.
-    text = text.replace("\\r", "\n").replace("\\n", "\n").replace("\\t", "\t")
+    text = decode_mysql_escapes(text)
 
     # Remove scripts, styles, and comments to avoid inline code.
     text = re.sub(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", text)
@@ -274,16 +256,31 @@ def clean_content(text: str, *, table_delim: str, replace_char: str) -> str:
     text = text.replace("\r\n", "\n").replace("\r", "\n")
 
     # Filter control, zero-width, and non-ASCII characters.
-    text = _filter_characters(text, replace_char)
+    if not raw:
+        text = filter_characters(
+            text,
+            replace_char,
+            keep_tabs=keep_tabs,
+            keep_newlines=keep_newlines,
+            ascii_only=ascii_only,
+        )
 
     return _normalize_lines(text, table_delim)
 
 
-def clean_md(text: str, *, replace_char: str) -> str:
+def clean_md(
+    text: str,
+    *,
+    replace_char: str,
+    keep_tabs: bool = True,
+    keep_newlines: bool = True,
+    ascii_only: bool = True,
+    raw: bool = False,
+) -> str:
     if not text:
         return ""
     # Decode literal escape sequences from mysql -e output.
-    text = text.replace("\\r", "\n").replace("\\n", "\n").replace("\\t", "\t")
+    text = decode_mysql_escapes(text)
 
     # Remove scripts, styles, and comments to avoid inline code.
     text = re.sub(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", text)
@@ -348,41 +345,16 @@ def clean_md(text: str, *, replace_char: str) -> str:
     text = text.replace("\r\n", "\n").replace("\r", "\n")
 
     # Filter control, zero-width, and non-ASCII characters.
-    text = _filter_characters(text, replace_char)
+    if not raw:
+        text = filter_characters(
+            text,
+            replace_char,
+            keep_tabs=keep_tabs,
+            keep_newlines=keep_newlines,
+            ascii_only=ascii_only,
+        )
 
     return _normalize_markdown(text)
-
-
-def strip_footer(text: str) -> str:
-    if not text:
-        return text
-    lines = text.splitlines()
-    for idx, line in enumerate(lines):
-        if line.strip().lower() in {"resources", "community"}:
-            stripped = "\n".join(lines[:idx]).rstrip()
-            return f"{stripped}\n" if stripped else ""
-    return text
-
-
-def safe_filename(name: str, ext: str = ".txt") -> str:
-    name = name.replace("/", "-")
-    name = re.sub(r"\s+", " ", name).strip()
-    return f"{name}{ext}"
-
-
-def _validate_replace_char(value: str) -> str | None:
-    if not value:
-        return None
-    if len(value) != 1:
-        error("--replace-char must be a single ASCII character.")
-        return None
-    if ord(value) >= 128:
-        error("--replace-char must be ASCII.")
-        return None
-    if value in {"\n", "\r", "\t"}:
-        error("--replace-char cannot be a newline or tab.")
-        return None
-    return value
 
 
 def _table_delimiter(name: str) -> str:
@@ -424,11 +396,7 @@ def main() -> int:
         default="text",
         help="Output format: text or markdown (default: text).",
     )
-    parser.add_argument(
-        "--replace-char",
-        default="",
-        help="Replace suspicious characters instead of removing them (ASCII only).",
-    )
+    add_filter_args(parser)
     args = parser.parse_args()
 
     if not validate_limits(args.lines, args.max_bytes):
@@ -437,9 +405,11 @@ def main() -> int:
         args.strict_header = False
         args.strict_columns = False
 
-    replace_char = _validate_replace_char(args.replace_char)
-    if replace_char is None and args.replace_char:
+    filter_args = resolve_filter_args(args, keep_tabs_default=True)
+    if filter_args is None:
         return 1
+    replace_char, ascii_only, keep_tabs, keep_newlines, raw = filter_args
+    output_encoding = "utf-8" if raw or not ascii_only else "ascii"
     table_delim = _table_delimiter(args.table_delim)
     output_format = args.format
     output_ext = ".md" if output_format == "markdown" else ".txt"
@@ -497,19 +467,27 @@ def main() -> int:
         if output_format == "markdown":
             cleaned = clean_md(
                 match.row.content,
-                replace_char=replace_char or "",
+                replace_char=replace_char,
+                keep_tabs=keep_tabs,
+                keep_newlines=keep_newlines,
+                ascii_only=ascii_only,
+                raw=raw,
             )
         else:
             cleaned = clean_content(
                 match.row.content,
                 table_delim=table_delim,
-                replace_char=replace_char or "",
+                replace_char=replace_char,
+                keep_tabs=keep_tabs,
+                keep_newlines=keep_newlines,
+                ascii_only=ascii_only,
+                raw=raw,
             )
         if not args.footer:
             cleaned = strip_footer(cleaned)
         out_path = output_dir / safe_filename(match.entry.name, output_ext)
         try:
-            out_path.write_text(cleaned, encoding="ascii")
+            out_path.write_text(cleaned, encoding=output_encoding)
         except OSError as exc:
             error(f"output file could not be written: {out_path} ({exc})")
             return 1

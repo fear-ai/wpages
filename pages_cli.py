@@ -124,6 +124,74 @@ def add_common_args(
     )
 
 
+def add_filter_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--replace",
+        dest="replace_char",
+        nargs="?",
+        const="",
+        default=None,
+        help=(
+            "Replace suspicious characters (default: space). "
+            "Provide a single ASCII character (0x21-0x7E). "
+            "Use --replace with no value to delete instead."
+        ),
+    )
+    parser.add_argument(
+        "--raw",
+        action="store_true",
+        help="Disable character filtering (control/zero-width/non-ASCII).",
+    )
+    parser.add_argument(
+        "--utf",
+        action="store_true",
+        help="Allow Unicode characters (do not drop bytes >= 0x7F).",
+    )
+    parser.add_argument(
+        "--notab",
+        action="store_true",
+        help="Disallow tab characters in output.",
+    )
+    parser.add_argument(
+        "--nonl",
+        action="store_true",
+        help="Disallow newline characters in output.",
+    )
+
+
+def _validate_replace_char(value: str) -> str | None:
+    if not value:
+        return None
+    if len(value) != 1:
+        error("--replace must be a single ASCII character.")
+        return None
+    code = ord(value)
+    if code <= 0x20 or code >= 0x7F:
+        error("--replace must be a printable ASCII character (0x21-0x7E).")
+        return None
+    return value
+
+
+def resolve_filter_args(
+    args: argparse.Namespace,
+    *,
+    keep_tabs_default: bool,
+) -> tuple[str, bool, bool, bool, bool] | None:
+    if args.replace_char is None:
+        replace_char = " "
+    elif args.replace_char == "":
+        replace_char = ""
+    else:
+        replace_char = _validate_replace_char(args.replace_char)
+        if replace_char is None:
+            return None
+    ascii_only = not args.utf
+    keep_newlines = not args.nonl
+    keep_tabs = keep_tabs_default and not args.notab
+    raw = args.raw
+    return replace_char, ascii_only, keep_tabs, keep_newlines, raw
+
+
 def validate_limits(lines: int, max_bytes: int) -> bool:
     if lines < 0:
         error("--lines must be 0 or a positive integer.")

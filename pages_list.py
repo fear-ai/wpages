@@ -10,6 +10,7 @@ from pages_cli import (
     error,
     load_focus_entries,
     parse_dump_checked,
+    warn,
     validate_limits,
 )
 from pages_focus import match_entries, match_label
@@ -109,6 +110,7 @@ def main() -> int:
             if match.row is not None:
                 output.append(emit_row(match.entry.name, match.row, match.label))
                 continue
+            warn(f"Missing page: {match.entry.name}")
             if args.details:
                 output.append(emit_row(match.entry.name, None, "none"))
 

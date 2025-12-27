@@ -121,6 +121,12 @@ expect the situation per dump or per page; confirm with `db.out`.
 - Prioritize a rapid, solid working implementation.
 - Default handling for strongly suspicious sequences is removal.
 
+### Current Implementation Notes
+- pages_text.py decodes MySQL literal escapes, strips script/style/comments, strips all HTML tags, removes entities (replacing with spaces), normalizes CRLF/CR to LF, collapses whitespace, and filters control/zero-width/non-ASCII with default space replacement; `--replace` can override or delete, with `--raw/--utf/--nonl/--notab` to adjust filtering.
+- pages_content.py preserves structure (headings/lists/tables), extracts link/image destinations, and blocks bad URL schemes with bracketed labels. Entity decoding happens before character filtering; character filtering removes control chars (except \\n/\\t), zero-width chars, and non-ASCII with default replacement by space and optional replacement via --replace.
+- Replacement suppression is one-per-run of removed characters (consecutive removals collapse to a single replacement).
+- URL extraction happens before character filtering, so control/zero-width/non-ASCII characters can appear in extracted URLs prior to filtering.
+
 ### Sanitization Tooling Alternatives
 - Python stdlib HTMLParser: Pros: no dependencies, predictable behavior. Cons:
   limited sanitization features and verbose rule enforcement.
@@ -182,10 +188,12 @@ expect the situation per dump or per page; confirm with `db.out`.
 - No sanitizer pipeline or ruleset implemented yet.
 - No import tooling yet for WP-CLI or editor workflows.
 - No validation or policy enforcement for links, images, or shortcodes.
-- UTF-8 support and validation are delayed; ASCII-only output remains the default.
-- No Unicode normalization or escaping policy implemented.
-- Filename hardening is not implemented; current naming only replaces '/' and
-  trims whitespace.
+- UTF-8 output is optional via `--utf` or `--raw`; validation remains minimal and
+  ASCII-only output is still the default.
+- Unicode normalization is limited to NFKD in the ASCII-only path; no broader
+  Unicode escaping policy is implemented.
+- Filename hardening is implemented in `pages_util.safe_filename` (see
+  `PFilename.md`) with Windows-safe ASCII rules and length limits.
 - Current table/list behavior and limitations are documented in `PContent.md`.
 
 ### Implementation References
