@@ -9,10 +9,11 @@ from test_pages import run_main
 
 from pages_cli import (
     add_common_args,
+    add_dump_args,
     add_filter_args,
     emit_db_warnings,
     load_focus_entries,
-    parse_dump_checked,
+    parse_dump_check,
     resolve_filter_args,
     validate_limits,
 )
@@ -31,6 +32,7 @@ class TestPagesCLI(unittest.TestCase):
         )
         cases = [
             (["--input", "custom.out"], {"input": "custom.out"}),
+            (["--output-dir", "out"], {"output_dir": "out"}),
             (["--pages", "custom.list"], {"pages": "custom.list"}),
             (["--prefix"], {"use_prefix": True}),
             (["--noprefix"], {"use_prefix": False}),
@@ -48,6 +50,19 @@ class TestPagesCLI(unittest.TestCase):
                 parsed = parser.parse_args(args)
                 for key, value in expected.items():
                     self.assertEqual(getattr(parsed, key), value)
+
+    def test_dump_args_flags(self) -> None:
+        parser = argparse.ArgumentParser(add_help=False)
+        add_dump_args(parser, include_notags=True)
+        parsed = parser.parse_args(["--rows", "tmp", "--notags"])
+        self.assertEqual(parsed.dump_rows, "tmp")
+        self.assertTrue(parsed.notags)
+
+    def test_dump_args_no_notags(self) -> None:
+        parser = argparse.ArgumentParser(add_help=False)
+        add_dump_args(parser, include_notags=False)
+        parsed = parser.parse_args(["--rows", "tmp"])
+        self.assertEqual(parsed.dump_rows, "tmp")
 
     def test_filter_args_defaults(self) -> None:
         parser = argparse.ArgumentParser(add_help=False)
@@ -120,7 +135,7 @@ class TestPagesCLI(unittest.TestCase):
     def test_parse_missing_input(self) -> None:
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):
-            result = parse_dump_checked(
+            result = parse_dump_check(
                 Path("missing.out"),
                 max_lines=0,
                 max_bytes=0,
@@ -135,7 +150,7 @@ class TestPagesCLI(unittest.TestCase):
             path = Path(tmp)
             stderr = io.StringIO()
             with contextlib.redirect_stderr(stderr):
-                result = parse_dump_checked(
+                result = parse_dump_check(
                     path,
                     max_lines=0,
                     max_bytes=0,
@@ -151,7 +166,7 @@ class TestPagesCLI(unittest.TestCase):
             path.write_text("", encoding="utf-8")
             stderr = io.StringIO()
             with contextlib.redirect_stderr(stderr):
-                result = parse_dump_checked(
+                result = parse_dump_check(
                     path,
                     max_lines=0,
                     max_bytes=0,

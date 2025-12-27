@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import NamedTuple, TypeAlias
 
 from pages_db import Row, build_title_index, pick_best
+from pages_util import read_text_check
 
 
 class RowKey(NamedTuple):
@@ -37,7 +38,7 @@ class FocusMatch:
 
 
 def load_focus_list(path: Path, case_sensitive: bool) -> FocusListResult:
-    text = path.read_text(encoding="utf-8", errors="replace")
+    text = read_text_check(path, encoding="utf-8", errors="replace", label="pages list")
     parts = text.replace(",", "\n").splitlines()
     focus_entries: list[FocusEntry] = []
     duplicates: list[str] = []

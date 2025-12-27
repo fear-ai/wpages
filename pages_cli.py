@@ -60,49 +60,16 @@ def warn_if(condition: bool, message: str) -> None:
     warn(message)
 
 
-def add_common_args(
-    parser: argparse.ArgumentParser,
-    *,
-    prefix_default: bool | None,
-    case_default: bool | None,
-    prefix_help: str,
-    case_help: str,
-) -> None:
+def add_standard_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--input",
         default="db.out",
         help="Path to mysql tab dump (default: db.out).",
     )
     parser.add_argument(
-        "--pages",
-        default="pages.list",
-        help="Comma-separated page names list file (default: pages.list).",
-    )
-    parser.add_argument(
-        "--prefix",
-        dest="use_prefix",
-        action="store_true",
-        default=prefix_default,
-        help=prefix_help,
-    )
-    parser.add_argument(
-        "--noprefix",
-        dest="use_prefix",
-        action="store_false",
-        help="Disable prefix matching.",
-    )
-    parser.add_argument(
-        "--case",
-        dest="case_sensitive",
-        action="store_true",
-        default=case_default,
-        help=case_help,
-    )
-    parser.add_argument(
-        "--nocase",
-        dest="case_sensitive",
-        action="store_false",
-        help="Use case-insensitive matching.",
+        "--output-dir",
+        default=argparse.SUPPRESS,
+        help="Directory to write output files (default: current directory for writers).",
     )
     parser.add_argument(
         "--lines",
@@ -142,6 +109,83 @@ def add_common_args(
         default=True,
         help="Allow malformed rows; skip and count them (default: strict).",
     )
+
+
+def add_pages_args(
+    parser: argparse.ArgumentParser,
+    *,
+    prefix_default: bool | None,
+    case_default: bool | None,
+    prefix_help: str,
+    case_help: str,
+) -> None:
+    parser.add_argument(
+        "--pages",
+        default="pages.list",
+        help="Path to pages list file (default: pages.list).",
+    )
+    parser.add_argument(
+        "--prefix",
+        dest="use_prefix",
+        action="store_true",
+        default=prefix_default,
+        help=prefix_help,
+    )
+    parser.add_argument(
+        "--noprefix",
+        dest="use_prefix",
+        action="store_false",
+        help="Disable prefix matching.",
+    )
+    parser.add_argument(
+        "--case",
+        dest="case_sensitive",
+        action="store_true",
+        default=case_default,
+        help=case_help,
+    )
+    parser.add_argument(
+        "--nocase",
+        dest="case_sensitive",
+        action="store_false",
+        help="Use case-insensitive matching.",
+    )
+
+
+def add_common_args(
+    parser: argparse.ArgumentParser,
+    *,
+    prefix_default: bool | None,
+    case_default: bool | None,
+    prefix_help: str,
+    case_help: str,
+) -> None:
+    add_standard_args(parser)
+    add_pages_args(
+        parser,
+        prefix_default=prefix_default,
+        case_default=case_default,
+        prefix_help=prefix_help,
+        case_help=case_help,
+    )
+
+
+def add_dump_args(
+    parser: argparse.ArgumentParser,
+    *,
+    include_notags: bool = False,
+) -> None:
+    parser.add_argument(
+        "--rows",
+        dest="dump_rows",
+        help="Dump rows (raw row values) to numbered .txt files under DIR.",
+    )
+    if include_notags:
+        parser.add_argument(
+            "--notags",
+            action="store_true",
+            help="Write <Page>_notags.txt dump notags after tag stripping.",
+        )
 
 
 def add_filter_args(parser: argparse.ArgumentParser) -> None:
@@ -236,7 +280,7 @@ def load_focus_entries(path: Path, case_sensitive: bool) -> list[FocusEntry] | N
     return result.entries
 
 
-def parse_dump_checked(
+def parse_dump_check(
     input_path: Path,
     *,
     max_lines: int,
@@ -245,6 +289,7 @@ def parse_dump_checked(
     include_content: bool,
     strict_header: bool = True,
     strict_columns: bool = True,
+    dump_rows_dir: Path | None = None,
 ) -> ParseResult | None:
     limits = ParseLimits(max_lines=max_lines, max_bytes=max_bytes)
     try:
@@ -255,6 +300,7 @@ def parse_dump_checked(
             strict_columns=strict_columns,
             use_csv=use_csv,
             include_content=include_content,
+            dump_rows_dir=dump_rows_dir,
         )
     except FileNotFoundError:
         error(f"input file not found: {input_path}")

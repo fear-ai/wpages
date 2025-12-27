@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import re
 import unicodedata
+from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 
 WINDOWS_RESERVED_NAMES = {"CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"}
 # Windows-invalid filename characters plus ASCII control bytes (0x00-0x1F, 0x7F).
@@ -53,6 +55,130 @@ def decode_mysql_escapes(text: str) -> str:
     if not text:
         return ""
     return text.replace("\\r", "\n").replace("\\n", "\n").replace("\\t", "\t")
+
+
+def prepare_output_dir(out_dir: Path, *, label: str = "output") -> None:
+    if out_dir.exists() and not out_dir.is_dir():
+        raise OSError(format_path_not_dir(label, out_dir))
+    try:
+        out_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise OSError(format_dir_create_error(label, out_dir, exc))
+
+
+def write_text_check(
+    path: Path,
+    text: str,
+    *,
+    encoding: str = "utf-8",
+    errors: str | None = None,
+    label: str = "output",
+) -> None:
+    if path.exists() and path.is_dir():
+        raise OSError(format_path_is_dir(label, path))
+    try:
+        if errors is None:
+            path.write_text(text, encoding=encoding)
+        else:
+            path.write_text(text, encoding=encoding, errors=errors)
+    except OSError as exc:
+        raise OSError(format_file_write_error(label, path, exc))
+
+
+def make_dump_notags_sink(
+    path: Path,
+    *,
+    encoding: str,
+    errors: str | None,
+) -> Callable[[str], None]:
+    def sink(text: str) -> None:
+        write_text_check(
+            path,
+            text,
+            encoding=encoding,
+            errors=errors,
+            label="dump notags",
+        )
+
+    return sink
+
+
+def write_bytes_check(
+    path: Path,
+    data: bytes,
+    *,
+    label: str = "output",
+) -> None:
+    if path.exists() and path.is_dir():
+        raise OSError(format_path_is_dir(label, path))
+    try:
+        path.write_bytes(data)
+    except OSError as exc:
+        raise OSError(format_file_write_error(label, path, exc))
+
+
+def open_text_check(
+    path: Path,
+    *,
+    mode: str = "r",
+    encoding: str = "utf-8",
+    errors: str = "replace",
+    newline: str | None = None,
+    label: str = "input",
+):
+    try:
+        return path.open(
+            mode,
+            encoding=encoding,
+            errors=errors,
+            newline=newline,
+        )
+    except FileNotFoundError:
+        raise
+    except OSError as exc:
+        raise OSError(format_file_read_error(label, path, exc))
+
+
+def read_text_check(
+    path: Path,
+    *,
+    encoding: str = "utf-8",
+    errors: str = "replace",
+    label: str = "input",
+) -> str:
+    handle = open_text_check(
+        path,
+        mode="r",
+        encoding=encoding,
+        errors=errors,
+        label=label,
+    )
+    with handle:
+        return handle.read()
+
+
+def format_path_not_dir(label: str, path: Path) -> str:
+    return f"{label} path is not a directory: {path}"
+
+
+def format_dir_not_dir(label: str, path: Path) -> str:
+    return f"{label} is not a directory: {path}"
+
+
+def format_dir_create_error(label: str, path: Path, exc: OSError) -> str:
+    return f"{label} directory could not be created: {path} ({exc})"
+
+
+def format_path_is_dir(label: str, path: Path) -> str:
+    return f"{label} path is a directory: {path}"
+
+
+def format_file_write_error(label: str, path: Path, exc: OSError) -> str:
+    return f"{label} file could not be written: {path} ({exc})"
+
+
+def format_file_read_error(label: str, path: Path, exc: OSError) -> str:
+    return f"{label} file could not be read: {path} ({exc})"
 
 
 def filter_characters(

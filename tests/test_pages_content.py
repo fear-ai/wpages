@@ -137,11 +137,33 @@ class TestPagesContent(unittest.TestCase):
         self.assertEqual(counts.tables_conv, 1)
         self.assertEqual(counts.comments_rm, 1)
 
+    def test_clean_content_notags_sink(self) -> None:
+        seen: list[str] = []
+
+        def sink(value: str) -> None:
+            seen.append(value)
+
+        self.assertEqual(
+            clean_content("<b>Hi</b>&amp;", table_delim=",", replace_char="", notags_sink=sink),
+            "Hi &\n",
+        )
+        self.assertEqual(len(seen), 1)
+        self.assertIn("Hi", seen[0])
+        self.assertIn("&amp;", seen[0])
+        self.assertNotIn("<", seen[0])
+
     def test_clean_content_nested_lists(self) -> None:
         text = "<ul><li>One<ul><li>Sub</li></ul></li><li>Two</li></ul>"
         self.assertEqual(
             clean_content(text, table_delim=",", replace_char=""),
             "- One\n- Sub\n- Two\n",
+        )
+
+    def test_clean_content_list_block_tags(self) -> None:
+        text = "<ul><li><p>One</p></li><li><div>Two</div></li></ul>"
+        self.assertEqual(
+            clean_content(text, table_delim=",", replace_char=""),
+            "- One\n- Two\n",
         )
 
     def test_clean_md_headings_emphasis_code(self) -> None:
@@ -241,6 +263,13 @@ class TestPagesContent(unittest.TestCase):
             "- One\n- Two\nA | B\n1 | 2\n",
         )
 
+    def test_clean_md_list_block_tags(self) -> None:
+        text = "<ul><li><p>One</p></li><li><div>Two</div></li></ul>"
+        self.assertEqual(
+            clean_md(text, replace_char=""),
+            "- One\n- Two\n",
+        )
+
     def test_clean_md_ordered_list(self) -> None:
         text = "<ol><li>One</li><li>Two</li></ol>"
         self.assertEqual(
@@ -282,6 +311,18 @@ class TestPagesContent(unittest.TestCase):
             clean_md(text, replace_char=""),
             "[Alt]\n",
         )
+
+    def test_clean_md_notags_sink(self) -> None:
+        seen: list[str] = []
+
+        def sink(value: str) -> None:
+            seen.append(value)
+
+        self.assertEqual(clean_md("<b>Hi</b>&amp;", replace_char="", notags_sink=sink), "**Hi**&\n")
+        self.assertEqual(len(seen), 1)
+        self.assertIn("Hi", seen[0])
+        self.assertIn("&amp;", seen[0])
+        self.assertNotIn("<", seen[0])
 
     def test_clean_md_ent(self) -> None:
         text = "<script>bad</script>A&nbsp;B &amp; C"

@@ -21,6 +21,7 @@ Runner and conventions:
 - Diff files are always created for stdout/file comparisons; empty .diff means no differences and non-empty .diff holds the mismatch details.
 - Order is the group order in tests/run_tests.sh; --group all runs unit tests first, then list and text CLI tests.
 - results_YYYYMMDD_HHMMSS* directories are run artifacts and should be ignored.
+- Optional dump rows: pass --rows DIR to any CLI to dump raw row values to numbered .txt files.
 
 File types:
 - *.out: mysql tab dump fixtures with a header row and tab-delimited values.
@@ -101,6 +102,7 @@ CLI integration tests:
 
 pages_list.py CLI tests (basic and matching):
 - Defaults: python3 pages_list.py --input tests/sample.out --pages tests/sample.list -> stdout tests/default_expected.csv.
+- Optional output file: python3 pages_list.py --input tests/sample.out --pages tests/sample.list --output-dir DIR writes pages_list.csv to DIR (stdout still receives CSV).
 - Exact match: python3 pages_list.py --input tests/sample.out --pages tests/sample.list --only -> stdout tests/sample_only_expected.csv.
 - CSV mode: python3 pages_list.py --input tests/sample.out --pages tests/sample.list --only --csv -> stdout tests/sample_only_expected.csv.
 - Prefix enabled: python3 pages_list.py --input tests/sample.out --pages tests/prefix_only.list --only --prefix -> stdout tests/prefix_only_expected.csv.
@@ -147,6 +149,7 @@ pages_list.py behavior notes:
 
 pages_text.py CLI tests:
 - Basic extraction: python3 pages_text.py --input tests/sample.out --pages tests/sample.list --output-dir <tmp> -> Home.txt, About.txt, Contact.txt match tests/pages_text_*_expected.txt.
+- Optional dump notags: python3 pages_text.py --input tests/sample.out --pages tests/sample.list --notags writes `<Page>_notags.txt` dump notags alongside output files.
 - Output directory creation: python3 pages_text.py --output-dir <new_dir> creates the directory and writes expected files.
 - Output directory error: python3 pages_text.py --output-dir <file_path> exits with "output path is not a directory".
 - Missing focus warning: python3 pages_text.py --input tests/missing_row.out --pages tests/missing_page.list -> stderr contains "Warning: Missing page: Missing" and does not write Missing.txt.
@@ -156,6 +159,7 @@ pages_text.py CLI tests:
 
 pages_content.py CLI tests:
 - Basic extraction: python3 pages_content.py --input tests/sample.out --pages tests/sample.list --output-dir <tmp> -> Home.txt, About.txt, Contact.txt match tests/pages_text_*_expected.txt.
+- Optional dump notags: python3 pages_content.py --input tests/sample.out --pages tests/sample.list --notags writes `<Page>_notags.txt` dump notags alongside output files.
 - Output directory creation and error cases mirror pages_text.py.
 - HTML fixture: python3 pages_content.py --input tests/content.out --pages tests/content.list -> HTML.txt, Dirty.txt match pages_content expected outputs.
 - Table delimiter: python3 pages_content.py --table-delim tab uses tabs between table cells.

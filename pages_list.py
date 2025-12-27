@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 import argparse
 import csv
+import io
 import sys
 from pathlib import Path
 
 from pages_cli import (
     add_common_args,
+    add_dump_args,
     emit_db_warnings,
     error,
     load_focus_entries,
-    parse_dump_checked,
+    parse_dump_check,
     warn,
     validate_limits,
 )
 from pages_focus import match_entries, match_label
+from pages_util import prepare_output_dir, write_text_check
 
 
 def emit_row(focus: str, row, match: str) -> dict:
@@ -47,6 +50,7 @@ def main() -> int:
         prefix_help="Enable prefix matching (default: off unless --details).",
         case_help="Use case-sensitive matching (default: on unless --details).",
     )
+    add_dump_args(parser)
     parser.add_argument(
         "--only",
         action="store_true",
@@ -80,7 +84,8 @@ def main() -> int:
     strict_header = args.strict_header
     strict_columns = args.strict_columns
     input_path = Path(args.input)
-    result = parse_dump_checked(
+    dump_rows_dir = Path(args.dump_rows) if args.dump_rows else None
+    result = parse_dump_check(
         input_path,
         max_lines=args.lines,
         max_bytes=args.max_bytes,
@@ -88,6 +93,7 @@ def main() -> int:
         include_content=False,
         strict_header=strict_header,
         strict_columns=strict_columns,
+        dump_rows_dir=dump_rows_dir,
     )
     if result is None:
         return 1
@@ -100,6 +106,17 @@ def main() -> int:
     if args.only and not focus_entries:
         error("pages list must include at least one page name.")
         return 1
+
+    output_dir_value = getattr(args, "output_dir", None)
+    output_path = None
+    if output_dir_value is not None:
+        output_dir = Path(output_dir_value)
+        try:
+            prepare_output_dir(output_dir)
+        except OSError as exc:
+            error(str(exc))
+            return 1
+        output_path = output_dir / "pages_list.csv"
 
     output = []
     rows = result.rows
@@ -125,7 +142,8 @@ def main() -> int:
             else:
                 output.append(emit_row("", row, ""))
 
-    writer = csv.writer(sys.stdout, lineterminator="\n")
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, lineterminator="\n")
     if args.details:
         for row in output:
             writer.writerow(
@@ -141,6 +159,15 @@ def main() -> int:
     else:
         for row in output:
             writer.writerow([row["title"], row["id"], row["status"], row["date"]])
+
+    output_text = buffer.getvalue()
+    sys.stdout.write(output_text)
+    if output_path is not None:
+        try:
+            write_text_check(output_path, output_text, encoding="utf-8", label="output")
+        except OSError as exc:
+            error(str(exc))
+            return 1
 
     return 0
 

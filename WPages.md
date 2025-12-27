@@ -18,10 +18,18 @@ Pain points:
 Requirements:
 - Expect mysql -e tab output; prefer escaping to avoid literal tabs/newlines.
 - Use --csv when dumps include backslash-escaped tabs/newlines; avoid --raw output.
-- pages.list accepts comma- or newline-separated names; whitespace is trimmed per entry.
+- pages.list accepts comma- or newline-separated names; whitespace is trimmed per entry. The CLI does not accept inline page lists; use --pages PATH.
 - Normalization: parsing normalizes header casing and line endings (CR/LF), but does not normalize column values or unescape backslash sequences. Matching normalizes focus names and titles consistently (case-sensitive or lowercased) for dedupe, indexing, prefix checks, and details labeling.
 - Line endings: parsing treats LF as the line break (newline="\\n"), trims trailing CR/LF, and strips leading CR on lines to tolerate LFCR. CR-only files are not supported; use LF or CRLF.
 - Strict parsing is the default; use --permit, --permit-header, or --permit-columns to continue past header mismatches or malformed rows.
+- Use --rows DIR to dump rows (raw row values) to numbered .txt files for debugging.
+
+CLI options (by tool):
+- Shared standard + pages options (all tools): --input, --output-dir (writers only), --pages, --prefix/--noprefix, --case/--nocase, --lines, --bytes, --csv, --permit/--permit-header/--permit-columns.
+- Shared dump options (all tools): --rows DIR (dump rows). --notags is only supported by pages_text.py/pages_content.py because only those tools strip HTML.
+- pages_list.py: --only, --details. Output is written to stdout; if --output-dir is provided, pages_list.csv is also written there.
+- pages_text.py: --footer, --notags (dump notags), plus filter flags (--replace/--raw/--utf/--notab/--nonl).
+- pages_content.py: --footer, --format, --table-delim, --notags (dump notags), plus filter flags (--replace/--raw/--utf/--notab/--nonl).
 
 Terminology:
 - Column: database structure element (SQL/MySQL); column name is the header label (e.g., post_title).

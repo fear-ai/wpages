@@ -42,6 +42,13 @@ class TestPagesDB(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             parse_dump(path)
 
+    def test_directory_path_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir)
+            with self.assertRaises(ParseError) as raised:
+                parse_dump(path)
+            self.assertIn("input file could not be read", str(raised.exception))
+
     def test_header_error_path(self) -> None:
         path = TESTS_DIR / "bad_header.out"
         with self.assertRaises(ParseError) as raised:
@@ -183,6 +190,36 @@ class TestPagesDB(unittest.TestCase):
             result = parse_dump(path)
             self.assertEqual(len(result.rows), 2)
             self.assertEqual(result.stats.duplicate_id_count, 1)
+
+    def test_dump_rows_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = Path(tmp) / "rows"
+            result = parse_dump(TESTS_DIR / "sample.out", dump_rows_dir=out_dir)
+            self.assertEqual(len(result.rows), 8)
+            files = sorted(out_dir.glob("*.txt"))
+            self.assertEqual(len(files), 8)
+            first = (out_dir / "1.txt").read_text(encoding="utf-8")
+            self.assertEqual(
+                first,
+                "1\nHome\nWelcome home\npublish\n2023-01-01\n",
+            )
+
+    def test_dump_rows_dir_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = Path(tmp) / "rows"
+            out_dir.write_text("not a dir", encoding="utf-8")
+            with self.assertRaises(ParseError) as raised:
+                parse_dump(TESTS_DIR / "sample.out", dump_rows_dir=out_dir)
+            self.assertIn("Dump rows directory is not a directory", str(raised.exception))
+
+    def test_dump_rows_path_is_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = Path(tmp) / "rows"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            (out_dir / "1.txt").mkdir()
+            with self.assertRaises(ParseError) as raised:
+                parse_dump(TESTS_DIR / "sample.out", dump_rows_dir=out_dir)
+            self.assertIn("Dump rows path is a directory", str(raised.exception))
 
     def test_indexes_and_best(self) -> None:
         rows = parse_dump(TESTS_DIR / "sample.out").rows

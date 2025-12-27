@@ -6,6 +6,13 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from pages_util import (
+    format_dir_create_error,
+    format_dir_not_dir,
+    open_text_check,
+    write_text_check,
+)
+
 EXPECTED_HEADER = ["id", "post_title", "post_content", "post_status", "post_date"]
 KNOWN_STATUSES = (
     "publish",
@@ -67,6 +74,7 @@ def parse_dump(
     strict_columns: bool = True,
     use_csv: bool = False,
     include_content: bool = True,
+    dump_rows_dir: Path | None = None,
 ) -> ParseResult:
     if limits is None:
         limits = ParseLimits()
@@ -74,7 +82,21 @@ def parse_dump(
     stats = ParseStats()
     rows: list[Row] = []
     seen_ids: set[str] = set()
-    with path.open("r", encoding="utf-8", errors="replace", newline="\n") as handle:
+    dump_index = 0
+    try:
+        handle = open_text_check(
+            path,
+            mode="r",
+            encoding="utf-8",
+            errors="replace",
+            newline="\n",
+            label="input",
+        )
+    except FileNotFoundError:
+        raise
+    except OSError as exc:
+        raise ParseError(str(exc))
+    with handle:
         header = handle.readline()
         if not header:
             raise ParseError(f"Empty input file {path}")
@@ -86,12 +108,16 @@ def parse_dump(
         if strict_header and mismatch:
             raise ParseError(format_header_error(path, header_cols, EXPECTED_HEADER))
 
+        if dump_rows_dir is not None:
+            prepare_dump_rows_dir(dump_rows_dir)
+
         for line_no, line in enumerate(handle, start=2):
             line = line.rstrip("\r\n")
             if line.startswith("\r"):
                 line = line.lstrip("\r")
             if not line:
                 continue
+            dump_index += 1
             if limits.max_lines and stats.read_lines >= limits.max_lines:
                 stats.reached_limit = True
                 break
@@ -112,6 +138,9 @@ def parse_dump(
                 parts = next(reader)
             else:
                 parts = line.split("\t", 4)
+
+            if dump_rows_dir is not None:
+                dump_rows(dump_rows_dir, dump_index, parts)
 
             if len(parts) != 5:
                 if strict_columns:
@@ -140,6 +169,31 @@ def parse_dump(
                 )
             )
     return ParseResult(rows=rows, stats=stats)
+
+
+def dump_rows(out_dir: Path, row_index: int, parts: list[str]) -> Path:
+    out_path = out_dir / f"{row_index}.txt"
+    if out_path.exists() and out_path.is_dir():
+        raise ParseError(f"Dump rows path is a directory: {out_path}")
+    try:
+        write_text_check(
+            out_path,
+            "\n".join(parts) + "\n",
+            encoding="utf-8",
+            label="Dump rows",
+        )
+    except OSError as exc:
+        raise ParseError(str(exc))
+    return out_path
+
+
+def prepare_dump_rows_dir(out_dir: Path) -> None:
+    if out_dir.exists() and not out_dir.is_dir():
+        raise ParseError(format_dir_not_dir("Dump rows directory", out_dir))
+    try:
+        out_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise ParseError(format_dir_create_error("Dump rows", out_dir, exc))
 
 
 def format_header_error(path: Path, actual: list[str], expected: list[str]) -> str:

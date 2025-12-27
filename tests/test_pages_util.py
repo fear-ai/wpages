@@ -1,4 +1,6 @@
+import tempfile
 import unittest
+from pathlib import Path
 
 from test_pages import run_main
 
@@ -6,8 +8,13 @@ from pages_util import (
     FilterCounts,
     decode_mysql_escapes,
     filter_characters,
+    open_text_check,
+    prepare_output_dir,
+    read_text_check,
     safe_filename,
     strip_footer,
+    write_bytes_check,
+    write_text_check,
 )
 
 
@@ -95,6 +102,70 @@ class TestPagesUtil(unittest.TestCase):
         self.assertEqual(counts.re_control, 1)
         self.assertEqual(counts.re_non_ascii, 1)
         self.assertEqual(counts.rep_chars, 4)
+
+    def test_prepare_output_dir_existing_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "output.txt"
+            path.write_text("x", encoding="utf-8")
+            with self.assertRaises(OSError) as raised:
+                prepare_output_dir(path)
+            self.assertIn("output path is not a directory", str(raised.exception))
+
+    def test_prepare_output_dir_creates(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "new_dir"
+            prepare_output_dir(path)
+            self.assertTrue(path.is_dir())
+
+    def test_write_text_check_dir_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "dir_path"
+            path.mkdir()
+            with self.assertRaises(OSError) as raised:
+                write_text_check(path, "x")
+            self.assertIn("output path is a directory", str(raised.exception))
+
+    def test_write_text_check_missing_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "missing" / "file.txt"
+            with self.assertRaises(OSError) as raised:
+                write_text_check(path, "x")
+            self.assertIn("output file could not be written", str(raised.exception))
+
+    def test_write_bytes_check_dir_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "dir_path"
+            path.mkdir()
+            with self.assertRaises(OSError) as raised:
+                write_bytes_check(path, b"x")
+            self.assertIn("output path is a directory", str(raised.exception))
+
+    def test_write_bytes_check_missing_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "missing" / "file.bin"
+            with self.assertRaises(OSError) as raised:
+                write_bytes_check(path, b"x")
+            self.assertIn("output file could not be written", str(raised.exception))
+
+    def test_read_text_check_missing_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "missing.txt"
+            with self.assertRaises(FileNotFoundError):
+                read_text_check(path)
+
+    def test_read_text_check_dir_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "dir_path"
+            path.mkdir()
+            with self.assertRaises(OSError) as raised:
+                read_text_check(path)
+            self.assertIn("input file could not be read", str(raised.exception))
+
+    def test_open_text_check_missing_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "missing.txt"
+            with self.assertRaises(FileNotFoundError):
+                open_text_check(path)
 
 
 if __name__ == "__main__":

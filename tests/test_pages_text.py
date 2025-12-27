@@ -51,6 +51,18 @@ class TestPagesText(unittest.TestCase):
         self.assertEqual(counts.tags_rm, 2)
         self.assertEqual(counts.entities_rm, 1)
 
+    def test_clean_text_notags_sink(self) -> None:
+        seen: list[str] = []
+
+        def sink(value: str) -> None:
+            seen.append(value)
+
+        self.assertEqual(clean_text("<b>Hi</b>&amp;", notags_sink=sink), "Hi\n")
+        self.assertEqual(len(seen), 1)
+        self.assertIn("Hi", seen[0])
+        self.assertIn("&amp;", seen[0])
+        self.assertNotIn("<", seen[0])
+
 
 if __name__ == "__main__":
     run_main()

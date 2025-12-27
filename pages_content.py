@@ -2,16 +2,18 @@
 import argparse
 import html
 import re
+from collections.abc import Callable
 from pathlib import Path
 
 from pages_cli import (
     add_common_args,
+    add_dump_args,
     add_filter_args,
     emit_db_warnings,
     error,
     info_page_count,
     load_focus_entries,
-    parse_dump_checked,
+    parse_dump_check,
     resolve_filter_args,
     validate_limits,
     warn,
@@ -22,6 +24,9 @@ from pages_util import (
     SanitizeCounts,
     decode_mysql_escapes,
     filter_characters,
+    make_dump_notags_sink,
+    prepare_output_dir,
+    write_text_check,
     safe_filename,
     strip_footer,
 )
@@ -220,6 +225,8 @@ def _number_ordered_lists(
 
 def _normalize_lines(text: str, table_delim: str) -> str:
     lines = text.split("\n")
+    lines = _merge_dangling_list_markers(lines)
+    lines = _drop_list_blank_lines(lines)
     out_lines: list[str] = []
     blank = False
     for line in lines:
@@ -246,6 +253,8 @@ def _normalize_lines(text: str, table_delim: str) -> str:
 
 def _normalize_markdown(text: str) -> str:
     lines = text.split("\n")
+    lines = _merge_dangling_list_markers(lines)
+    lines = _drop_list_blank_lines(lines)
     out_lines: list[str] = []
     blank = False
     in_code = False
@@ -283,6 +292,7 @@ def clean_content(
     raw: bool = False,
     counts: SanitizeCounts | None = None,
     filter_counts: FilterCounts | None = None,
+    notags_sink: Callable[[str], None] | None = None,
 ) -> str:
     if not text:
         return ""
@@ -348,6 +358,8 @@ def clean_content(
     text, tags_rm = re.subn(r"(?s)<[^>]+>", " ", text)
     if counts is not None:
         counts.tags_rm += tags_rm
+    if notags_sink is not None:
+        notags_sink(text)
 
     # Decode entities and normalize line endings.
     if counts is not None:
@@ -379,6 +391,7 @@ def clean_md(
     raw: bool = False,
     counts: SanitizeCounts | None = None,
     filter_counts: FilterCounts | None = None,
+    notags_sink: Callable[[str], None] | None = None,
 ) -> str:
     if not text:
         return ""
@@ -482,6 +495,8 @@ def clean_md(
     text, tags_rm = re.subn(r"(?s)<[^>]+>", " ", text)
     if counts is not None:
         counts.tags_rm += tags_rm
+    if notags_sink is not None:
+        notags_sink(text)
 
     # Decode entities and normalize line endings.
     if counts is not None:
@@ -509,21 +524,65 @@ def _table_delimiter(name: str) -> str:
     return ","
 
 
+def _merge_dangling_list_markers(lines: list[str]) -> list[str]:
+    merged: list[str] = []
+    idx = 0
+    while idx < len(lines):
+        line = lines[idx]
+        stripped = line.strip()
+        if stripped == "-" or re.fullmatch(r"\d+\.", stripped):
+            jdx = idx + 1
+            while jdx < len(lines) and not lines[jdx].strip():
+                jdx += 1
+            if jdx < len(lines):
+                next_line = lines[jdx].strip()
+                if next_line:
+                    merged.append(f"{stripped} {next_line}")
+                    idx = jdx + 1
+                    continue
+        merged.append(line)
+        idx += 1
+    return merged
+
+
+def _drop_list_blank_lines(lines: list[str]) -> list[str]:
+    cleaned: list[str] = []
+    idx = 0
+    while idx < len(lines):
+        line = lines[idx]
+        if not line.strip():
+            prev_line = cleaned[-1] if cleaned else ""
+            jdx = idx + 1
+            while jdx < len(lines) and not lines[jdx].strip():
+                jdx += 1
+            if jdx < len(lines):
+                next_line = lines[jdx]
+                if _is_list_item_line(prev_line) and _is_list_item_line(next_line):
+                    idx = jdx
+                    continue
+        cleaned.append(line)
+        idx += 1
+    return cleaned
+
+
+def _is_list_item_line(line: str) -> bool:
+    stripped = line.lstrip()
+    if stripped.startswith("- "):
+        return True
+    return re.match(r"^\d+\.\s+", stripped) is not None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Extract page content from a mysql tab dump and write per-page .txt files."
     )
+    parser.set_defaults(output_dir=".")
     add_common_args(
         parser,
         prefix_default=False,
         case_default=True,
         prefix_help="Enable prefix matching (default: off).",
         case_help="Use case-sensitive matching (default: on).",
-    )
-    parser.add_argument(
-        "--output-dir",
-        default=".",
-        help="Directory to write .txt files (default: current directory).",
     )
     parser.add_argument(
         "--footer",
@@ -542,6 +601,7 @@ def main() -> int:
         default="text",
         help="Output format: text or markdown (default: text).",
     )
+    add_dump_args(parser, include_notags=True)
     add_filter_args(parser)
     args = parser.parse_args()
 
@@ -556,6 +616,7 @@ def main() -> int:
         return 1
     replace_char, ascii_only, keep_tabs, keep_newlines, raw = filter_args
     output_encoding = "utf-8" if raw or not ascii_only else "ascii"
+    output_errors = "ignore" if output_encoding == "ascii" else "strict"
     table_delim = _table_delimiter(args.table_delim)
     output_format = args.format
     output_ext = ".md" if output_format == "markdown" else ".txt"
@@ -570,7 +631,8 @@ def main() -> int:
     strict_header = args.strict_header
     strict_columns = args.strict_columns
     input_path = Path(args.input)
-    result = parse_dump_checked(
+    dump_rows_dir = Path(args.dump_rows) if args.dump_rows else None
+    result = parse_dump_check(
         input_path,
         max_lines=args.lines,
         max_bytes=args.max_bytes,
@@ -578,6 +640,7 @@ def main() -> int:
         include_content=True,
         strict_header=strict_header,
         strict_columns=strict_columns,
+        dump_rows_dir=dump_rows_dir,
     )
     if result is None:
         return 1
@@ -592,13 +655,10 @@ def main() -> int:
         return 1
 
     output_dir = Path(args.output_dir)
-    if output_dir.exists() and not output_dir.is_dir():
-        error(f"output path is not a directory: {output_dir}")
-        return 1
     try:
-        output_dir.mkdir(parents=True, exist_ok=True)
+        prepare_output_dir(output_dir)
     except OSError as exc:
-        error(f"output directory could not be created: {output_dir} ({exc})")
+        error(str(exc))
         return 1
 
     rows = result.rows
@@ -610,33 +670,64 @@ def main() -> int:
             continue
         for message in _structure_warnings(match.row.content):
             warn(f"{message} in page '{match.entry.name}'")
+        notags_path = (
+            output_dir / safe_filename(match.entry.name, "_notags.txt")
+            if args.notags
+            else None
+        )
         if output_format == "markdown":
             counts = SanitizeCounts()
             filter_counts = FilterCounts()
-            cleaned = clean_md(
-                match.row.content,
-                replace_char=replace_char,
-                keep_tabs=keep_tabs,
-                keep_newlines=keep_newlines,
-                ascii_only=ascii_only,
-                raw=raw,
-                counts=counts,
-                filter_counts=filter_counts,
-            )
+            try:
+                cleaned = clean_md(
+                    match.row.content,
+                    replace_char=replace_char,
+                    keep_tabs=keep_tabs,
+                    keep_newlines=keep_newlines,
+                    ascii_only=ascii_only,
+                    raw=raw,
+                    counts=counts,
+                    filter_counts=filter_counts,
+                    notags_sink=(
+                        None
+                        if notags_path is None
+                        else make_dump_notags_sink(
+                            notags_path,
+                            encoding=output_encoding,
+                            errors=output_errors,
+                        )
+                    ),
+                )
+            except OSError as exc:
+                error(str(exc))
+                return 1
         else:
             counts = SanitizeCounts()
             filter_counts = FilterCounts()
-            cleaned = clean_content(
-                match.row.content,
-                table_delim=table_delim,
-                replace_char=replace_char,
-                keep_tabs=keep_tabs,
-                keep_newlines=keep_newlines,
-                ascii_only=ascii_only,
-                raw=raw,
-                counts=counts,
-                filter_counts=filter_counts,
-            )
+            try:
+                cleaned = clean_content(
+                    match.row.content,
+                    table_delim=table_delim,
+                    replace_char=replace_char,
+                    keep_tabs=keep_tabs,
+                    keep_newlines=keep_newlines,
+                    ascii_only=ascii_only,
+                    raw=raw,
+                    counts=counts,
+                    filter_counts=filter_counts,
+                    notags_sink=(
+                        None
+                        if notags_path is None
+                        else make_dump_notags_sink(
+                            notags_path,
+                            encoding=output_encoding,
+                            errors=output_errors,
+                        )
+                    ),
+                )
+            except OSError as exc:
+                error(str(exc))
+                return 1
         if counts.other_scheme_links:
             warn(
                 f"Non-HTTP scheme links: {counts.other_scheme_links} in page '{match.entry.name}'"
@@ -649,9 +740,15 @@ def main() -> int:
             cleaned = strip_footer(cleaned)
         out_path = output_dir / safe_filename(match.entry.name, output_ext)
         try:
-            out_path.write_text(cleaned, encoding=output_encoding)
+            write_text_check(
+                out_path,
+                cleaned,
+                encoding=output_encoding,
+                errors=output_errors,
+                label="output",
+            )
         except OSError as exc:
-            error(f"output file could not be written: {out_path} ({exc})")
+            error(str(exc))
             return 1
         print(f"Wrote {out_path} ({match.row.id}, {match.label})")
         info_page_count("Blocks removed", counts.blocks_rm, match.entry.name)

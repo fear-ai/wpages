@@ -14,10 +14,24 @@ Document small, low-risk improvements to the current plain text cleaning path
 - `--raw` disables character filtering; `--utf` allows Unicode; `--nonl` removes
   newlines; `--notab` disallows tabs (tabs are normalized to spaces regardless).
 - Output is ASCII by default; `--utf` or `--raw` switches output to UTF-8.
+- Optional `--notags` writes a `<Page>_notags.txt` dump notags after tag stripping
+  (before entity removal and character filtering) using the same output encoding.
 - Sanitization and character filtering emit per-page Info counts (blocks/comments/tags/entities removed; control/zero-width/tab/newline/non-ASCII removals; replacement chars).
 - Collapses blank lines and ensures a trailing newline.
 - Optional footer stripping ("Resources"/"Community").
  - Parsing uses newline="\\n" to avoid splitting rows on bare \\r inside content.
+
+## CLI Options
+`pages_text.py` accepts shared standard + pages options (including `--output-dir`)
+and shared dump `--rows`, plus:
+- `--footer`: keep footer-like sections instead of stripping.
+- `--notags`: write `<Page>_notags.txt` dump notags after tag stripping.
+- `--replace [CHAR]`: replace suspicious characters (default: space). Use
+  `--replace` without a value to delete instead.
+- `--raw`: disable character filtering (control/zero-width/non-ASCII).
+- `--utf`: allow Unicode characters (do not drop bytes >= 0x7F).
+- `--notab`: disallow tab characters in output.
+- `--nonl`: disallow newline characters in output.
 
 ## Proposed Improvements (Quick Changes)
 Each item is designed to fit within the existing regex-based approach.

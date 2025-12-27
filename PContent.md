@@ -15,10 +15,12 @@ and stronger character handling while keeping the implementation lightweight.
    - Tables to delimited rows.
    - Block tags to line breaks.
 4) Strip all remaining tags.
-5) Unescape HTML entities and normalize line endings.
-6) Filter control, zero-width, and non-ASCII characters (default replace with space).
-7) Normalize whitespace and collapse repeated blank lines.
-8) Write ASCII text with a trailing newline (UTF-8 when `--utf` or `--raw`).
+5) Optional `--notags` writes a `<Page>_notags.txt` dump notags after tag stripping
+   (before entity decoding and character filtering).
+6) Unescape HTML entities and normalize line endings.
+7) Filter control, zero-width, and non-ASCII characters (default replace with space).
+8) Normalize whitespace and collapse repeated blank lines.
+9) Write ASCII text with a trailing newline (UTF-8 when `--utf` or `--raw`).
 
 ## Text Output Conversions
 
@@ -146,11 +148,12 @@ Implications:
   trailing spaces; other lines are normalized.
 
 ## CLI Options
-In addition to the shared options from `pages_cli.py`:
-- `--output-dir`: output directory for `.txt` or `.md` files.
+`pages_content.py` accepts shared standard + pages options (including
+`--output-dir`) and shared dump `--rows`, plus:
 - `--footer`: keep footer-like sections instead of stripping.
 - `--format {text,markdown}`: output format (default: text).
 - `--table-delim {comma,tab}`: table fallback delimiter (default: comma).
+- `--notags`: write `<Page>_notags.txt` dump notags after tag stripping.
 - `--replace [CHAR]`: replace suspicious characters (default: space). Use
   `--replace` without a value to delete instead.
 - `--raw`: disable character filtering (control/zero-width/non-ASCII).
