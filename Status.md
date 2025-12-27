@@ -21,7 +21,7 @@ Implementation
 - pages_db.py: parse_dump returns rows + stats with limits, csv mode, and newline="\\n" to avoid CR splitting; trims trailing CR/LF and strips leading CR to tolerate LFCR; warnings emitted via pages_cli.py.
 - pages_cli.py: shared CLI options include `--rows` to dump raw row values for debugging.
 - pages_focus.py: focus list parsing and match_entries encapsulate matching behavior; warnings on duplicate focus names.
-- pages_list.py: CLI list output and matching behavior documented in WPages.md.
+- pages_list.py: CLI list output and matching behavior documented in WPages.md and PList.md.
 - pages_util.py: shared helpers for output paths and text cleanup (decode_mysql_escapes, strip_footer, and safe_filename with Windows-safe ASCII rules, 255-byte cap, and `_N` suffixing).
 - pages_text.py: legacy cleaner; strips tags/entities, filters control/zero-width/non-ASCII with default space replacement (overridable via --replace, plus --raw/--utf/--nonl/--notab), writes ASCII by default (UTF-8 for --utf/--raw), and supports `--notags` dump notags after tag stripping; behavior documented in PText.md.
 - pages_content.py: text/Markdown extraction, scheme blocking, ordered lists, structural warnings, and optional `--notags` dump notags after tag stripping; character filtering replaces control/zero-width/non-ASCII with space by default or `--replace` (suppressed per run); behavior documented in PContent.md.

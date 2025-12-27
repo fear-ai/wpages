@@ -101,45 +101,49 @@ Test helpers:
 CLI integration tests:
 
 pages_list.py CLI tests (basic and matching):
-- Defaults: python3 pages_list.py --input tests/sample.out --pages tests/sample.list -> stdout tests/default_expected.csv.
-- Optional output file: python3 pages_list.py --input tests/sample.out --pages tests/sample.list --output-dir DIR writes pages_list.csv to DIR (stdout still receives CSV).
-- Exact match: python3 pages_list.py --input tests/sample.out --pages tests/sample.list --only -> stdout tests/sample_only_expected.csv.
-- CSV mode: python3 pages_list.py --input tests/sample.out --pages tests/sample.list --only --csv -> stdout tests/sample_only_expected.csv.
-- Prefix enabled: python3 pages_list.py --input tests/sample.out --pages tests/prefix_only.list --only --prefix -> stdout tests/prefix_only_expected.csv.
-- Prefix disabled (details): python3 pages_list.py --input tests/sample.out --pages tests/prefix_only.list --details --noprefix -> stdout tests/prefix_noprefix_expected.csv.
-- Case-sensitive default: python3 pages_list.py --input tests/sample.out --pages tests/case.list --only -> stdout tests/case_sensitive_expected.csv.
-- Case-insensitive override: python3 pages_list.py --input tests/sample.out --pages tests/case.list --only --nocase -> stdout tests/case_nocase_expected.csv.
-- Glitchy list parsing: python3 pages_list.py --input tests/sample.out --pages tests/sample_glitch.list --only -> stdout tests/sample_only_expected.csv.
+Base: python3 pages_list.py --input tests/sample.out --pages tests/sample.list
+- Defaults: Base -> stdout tests/default_expected.csv.
+- Optional output file: Base --output-dir DIR writes pages_list.csv to DIR (stdout still receives CSV, content is checked).
+- Exact match: Base --only -> stdout tests/sample_only_expected.csv.
+- CSV mode: Base --only --csv -> stdout tests/sample_only_expected.csv.
+- Prefix enabled: Base with --pages tests/prefix_only.list --only --prefix -> stdout tests/prefix_only_expected.csv.
+- Prefix disabled (details): Base with --pages tests/prefix_only.list --details --noprefix -> stdout tests/prefix_noprefix_expected.csv.
+- Case-sensitive default: Base with --pages tests/case.list --only -> stdout tests/case_sensitive_expected.csv.
+- Case-insensitive override: Base with --pages tests/case.list --only --nocase -> stdout tests/case_nocase_expected.csv.
+- Glitchy list parsing: Base with --pages tests/sample_glitch.list --only -> stdout tests/sample_only_expected.csv.
 
 pages_list.py CLI tests (details, prefix, and overlap):
-- Details mode: python3 pages_list.py --input tests/sample.out --pages tests/sample.list --details -> stdout tests/details_sample_expected.csv.
-- Prefix + details: python3 pages_list.py --input tests/sample.out --pages tests/prefix.list --details -> stdout tests/prefix_details_expected.csv.
-- Prefix overlap: python3 pages_list.py --input tests/sample.out --pages tests/prefix_overlap.list --details -> stdout tests/prefix_overlap_expected.csv.
+Base: python3 pages_list.py --input tests/sample.out --pages tests/sample.list --details
+- Details mode: Base -> stdout tests/details_sample_expected.csv.
+- Prefix + details: Base with --pages tests/prefix.list -> stdout tests/prefix_details_expected.csv.
+- Prefix overlap: Base with --pages tests/prefix_overlap.list -> stdout tests/prefix_overlap_expected.csv.
 
 pages_list.py CLI tests (warnings and limits):
+Base: python3 pages_list.py --input tests/sample.out --pages tests/sample.list
 - Oversized line skip: python3 pages_list.py --input tests/oversized.out --pages tests/sample.list --details -> stdout tests/details_oversized_expected.csv.
 - Permit header mismatch: python3 pages_list.py --input tests/alt_header.out --pages tests/sample.list --only --permit-header -> stdout tests/permit_header_expected.csv, stderr contains "Warning: Header error".
 - Permit malformed rows: python3 pages_list.py --input tests/malformed.out --pages tests/sample.list --permit-columns -> stdout tests/permit_columns_expected.csv, stderr contains "Info: Malformed row count: 1".
 - Permit both: python3 pages_list.py --input tests/alt_header.out --pages tests/sample.list --only --permit -> stdout tests/permit_header_expected.csv, stderr contains "Warning: Header error".
-- Duplicate focus names: python3 pages_list.py --input tests/sample.out --pages tests/dups.list --only -> stderr contains "Warning: Duplicate page name skipped: Home".
-- Duplicate focus names (nocase): python3 pages_list.py --input tests/sample.out --pages tests/case_dups.list --only --nocase -> stderr contains "Warning: Duplicate page name skipped: contact".
+- Duplicate focus names: Base with --pages tests/dups.list --only -> stderr contains "Warning: Duplicate page name skipped: Home".
+- Duplicate focus names (nocase): Base with --pages tests/case_dups.list --only --nocase -> stderr contains "Warning: Duplicate page name skipped: contact".
 - Duplicate id warning: python3 pages_list.py --input tests/duplicate_id.out --pages tests/sample.list --only -> stderr contains "Info: Duplicate id count: 1".
 - Missing focus warning: python3 pages_list.py --input tests/missing_row.out --pages tests/missing_page.list --details -> stderr contains "Warning: Missing page: Missing".
-- Line limit: python3 pages_list.py --input tests/sample.out --pages tests/sample.list --only --lines 2 -> stderr contains "Warning: Line limit reached at line 2."
+- Line limit: Base --only --lines 2 -> stderr contains "Warning: Line limit reached at line 2."
 
 pages_list.py CLI tests (errors and missing lists):
+Base: python3 pages_list.py --input tests/sample.out --pages tests/sample.list
 - Malformed row error: python3 pages_list.py --input tests/malformed.out --pages tests/sample.list --details -> stderr contains "Error: Malformed row at line 2 in tests/malformed.out: expected 5 columns, got 4".
 - Bad header error: python3 pages_list.py --input tests/bad_header.out --pages tests/sample.list --details -> stderr contains "Error: Header error in tests/bad_header.out:".
-- --only with --details: python3 pages_list.py --input tests/sample.out --pages tests/prefix.list --only --details -> stderr contains "Error: --only cannot be used with --details."
-- Invalid --lines: python3 pages_list.py --input tests/sample.out --pages tests/sample.list --only --lines -1 -> stderr contains "Error: --lines must be 0 or a positive integer."
-- Invalid --bytes: python3 pages_list.py --input tests/sample.out --pages tests/sample.list --only --bytes -1 -> stderr contains "Error: --bytes must be 0 or a positive integer."
-- Missing pages list file: python3 pages_list.py --input tests/sample.out --pages tests/missing.list --only -> stderr contains "Error: pages list file not found: tests/missing.list".
-- Empty pages list file: python3 pages_list.py --input tests/sample.out --pages tests/empty.list --only -> stderr contains "Error: pages list must include at least one page name."
-- Invalid pages list file: python3 pages_list.py --input tests/sample.out --pages tests/invalid.list --only -> stderr contains "Error: pages list must include at least one page name."
+- --only with --details: Base with --pages tests/prefix.list --only --details -> stderr contains "Error: --only cannot be used with --details."
+- Invalid --lines: Base --only --lines -1 -> stderr contains "Error: --lines must be 0 or a positive integer."
+- Invalid --bytes: Base --only --bytes -1 -> stderr contains "Error: --bytes must be 0 or a positive integer."
+- Missing pages list file: Base with --pages tests/missing.list --only -> stderr contains "Error: pages list file not found: tests/missing.list".
+- Empty pages list file: Base with --pages tests/empty.list --only -> stderr contains "Error: pages list must include at least one page name."
+- Invalid pages list file: Base with --pages tests/invalid.list --only -> stderr contains "Error: pages list must include at least one page name."
 - Missing default pages list file: (cd tests/no_pages_list && python3 ../pages_list.py --input ../tests/sample.out --only) -> stderr contains "Error: pages list file not found: pages.list".
 - Empty default pages list file: (cd tests/empty_pages_list && python3 ../pages_list.py --input ../tests/sample.out --only) -> stderr contains "Error: pages list must include at least one page name."
-- Empty pages list file (not --only): python3 pages_list.py --input tests/sample.out --pages tests/empty.list -> stdout tests/all_rows_expected.csv.
-- Invalid pages list file (not --only): python3 pages_list.py --input tests/sample.out --pages tests/invalid.list -> stdout tests/all_rows_expected.csv.
+- Empty pages list file (not --only): Base with --pages tests/empty.list -> stdout tests/all_rows_expected.csv.
+- Invalid pages list file (not --only): Base with --pages tests/invalid.list -> stdout tests/all_rows_expected.csv.
 
 pages_list.py behavior notes:
 - Focus list dedupe uses normalized keys; duplicates are skipped with "Duplicate page name skipped" warnings.
@@ -148,28 +152,42 @@ pages_list.py behavior notes:
 - Not --only output tracks used IDs with a set (used_ids) so matched rows are not emitted twice.
 
 pages_text.py CLI tests:
-- Basic extraction: python3 pages_text.py --input tests/sample.out --pages tests/sample.list --output-dir <tmp> -> Home.txt, About.txt, Contact.txt match tests/pages_text_*_expected.txt.
-- Optional dump notags: python3 pages_text.py --input tests/sample.out --pages tests/sample.list --notags writes `<Page>_notags.txt` dump notags alongside output files.
-- Output directory creation: python3 pages_text.py --output-dir <new_dir> creates the directory and writes expected files.
-- Output directory error: python3 pages_text.py --output-dir <file_path> exits with "output path is not a directory".
-- Missing focus warning: python3 pages_text.py --input tests/missing_row.out --pages tests/missing_page.list -> stderr contains "Warning: Missing page: Missing" and does not write Missing.txt.
-- UTF-8 output: python3 pages_text.py --input tests/content.out --pages tests/content.list --utf -> Dirty.txt matches tests/pages_text_dirty_utf_expected.txt.
-- Raw output: python3 pages_text.py --input tests/content.out --pages tests/content.list --raw -> Dirty.txt matches tests/pages_text_dirty_raw_expected.txt.
-- No tabs/newlines: python3 pages_text.py --input tests/escapes.out --pages tests/escapes.list --notab --nonl -> Escapes.txt matches tests/escapes_notab_nonl_expected.txt.
+Base (sample): python3 pages_text.py --input tests/sample.out --pages tests/sample.list --output-dir DIR
+- Basic extraction: Base -> Home.txt, About.txt, Contact.txt match tests/pages_text_*_expected.txt.
+- Optional dump notags: Base --notags writes `<Page>_notags.txt` dump notags alongside output files (existence is checked).
+- Output directory creation: Base with DIR=<new_dir> creates the directory and writes expected files.
+- Output directory error: Base with DIR=<file_path> exits with "output path is not a directory".
+
+Base (missing): python3 pages_text.py --input tests/missing_row.out --pages tests/missing_page.list --output-dir DIR
+- Missing focus warning: Base -> stderr contains "Warning: Missing page: Missing" and does not write Missing.txt.
+
+Base (content): python3 pages_text.py --input tests/content.out --pages tests/content.list --output-dir DIR
+- UTF-8 output: Base --utf -> Dirty.txt matches tests/pages_text_dirty_utf_expected.txt.
+- Raw output: Base --raw -> Dirty.txt matches tests/pages_text_dirty_raw_expected.txt.
+
+Base (escapes): python3 pages_text.py --input tests/escapes.out --pages tests/escapes.list --output-dir DIR
+- No tabs/newlines: Base --notab --nonl -> Escapes.txt matches tests/escapes_notab_nonl_expected.txt.
 
 pages_content.py CLI tests:
-- Basic extraction: python3 pages_content.py --input tests/sample.out --pages tests/sample.list --output-dir <tmp> -> Home.txt, About.txt, Contact.txt match tests/pages_text_*_expected.txt.
-- Optional dump notags: python3 pages_content.py --input tests/sample.out --pages tests/sample.list --notags writes `<Page>_notags.txt` dump notags alongside output files.
+Base (sample): python3 pages_content.py --input tests/sample.out --pages tests/sample.list --output-dir DIR
+- Basic extraction: Base -> Home.txt, About.txt, Contact.txt match tests/pages_text_*_expected.txt.
+- Optional dump notags: Base --notags writes `<Page>_notags.txt` dump notags alongside output files (existence is checked).
 - Output directory creation and error cases mirror pages_text.py.
-- HTML fixture: python3 pages_content.py --input tests/content.out --pages tests/content.list -> HTML.txt, Dirty.txt match pages_content expected outputs.
-- Table delimiter: python3 pages_content.py --table-delim tab uses tabs between table cells.
-- Replacement character: python3 pages_content.py --replace "?" replaces stripped characters in Dirty.txt.
-- Replacement character validation: python3 pages_content.py --replace "??" exits with an error.
-- Markdown output: python3 pages_content.py --format markdown -> HTML.md, Dirty.md match Markdown expected outputs.
-- Missing focus warning: python3 pages_content.py --input tests/missing_row.out --pages tests/missing_page.list -> stderr contains "Warning: Missing page: Missing" and does not write Missing.txt.
-- UTF-8 output: python3 pages_content.py --input tests/content.out --pages tests/content.list --utf -> Dirty.txt matches tests/pages_content_dirty_utf_expected.txt.
-- Raw output: python3 pages_content.py --input tests/content.out --pages tests/content.list --raw -> Dirty.txt matches tests/pages_content_dirty_raw_expected.txt.
-- No tabs/newlines: python3 pages_content.py --input tests/escapes.out --pages tests/escapes.list --notab --nonl -> Escapes.txt matches tests/escapes_notab_nonl_expected.txt.
+
+Base (content): python3 pages_content.py --input tests/content.out --pages tests/content.list --output-dir DIR
+- HTML fixture: Base -> HTML.txt, Dirty.txt match pages_content expected outputs.
+- Table delimiter: Base --table-delim tab uses tabs between table cells.
+- Replacement character: Base --replace "?" replaces stripped characters in Dirty.txt.
+- Replacement character validation: Base --replace "??" exits with an error.
+- Markdown output: Base --format markdown -> HTML.md, Dirty.md match Markdown expected outputs.
+- UTF-8 output: Base --utf -> Dirty.txt matches tests/pages_content_dirty_utf_expected.txt.
+- Raw output: Base --raw -> Dirty.txt matches tests/pages_content_dirty_raw_expected.txt.
+
+Base (missing): python3 pages_content.py --input tests/missing_row.out --pages tests/missing_page.list --output-dir DIR
+- Missing focus warning: Base -> stderr contains "Warning: Missing page: Missing" and does not write Missing.txt.
+
+Base (escapes): python3 pages_content.py --input tests/escapes.out --pages tests/escapes.list --output-dir DIR
+- No tabs/newlines: Base --notab --nonl -> Escapes.txt matches tests/escapes_notab_nonl_expected.txt.
 
 pages_text.py unit tests:
 - tests/test_pages_text.py covers script/style/comment stripping, entity stripping, MySQL escape decoding, whitespace handling, character filtering, raw-mode preservation, and --notab/--nonl behavior.

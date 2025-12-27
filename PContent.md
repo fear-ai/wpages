@@ -147,19 +147,13 @@ Implications:
 - Markdown output preserves whitespace inside fenced code blocks and only trims
   trailing spaces; other lines are normalized.
 
-## CLI Options
-`pages_content.py` accepts shared standard + pages options (including
-`--output-dir`) and shared dump `--rows`, plus:
-- `--footer`: keep footer-like sections instead of stripping.
-- `--format {text,markdown}`: output format (default: text).
-- `--table-delim {comma,tab}`: table fallback delimiter (default: comma).
-- `--notags`: write `<Page>_notags.txt` dump notags after tag stripping.
-- `--replace [CHAR]`: replace suspicious characters (default: space). Use
-  `--replace` without a value to delete instead.
-- `--raw`: disable character filtering (control/zero-width/non-ASCII).
-- `--utf`: allow Unicode characters (do not drop bytes >= 0x7F).
-- `--notab`: disallow tab characters in output.
-- `--nonl`: disallow newline characters in output.
+## CLI Options (Ordered Groups)
+- Standard options: --input, --output-dir, --lines, --bytes, --csv,
+  --permit/--permit-header/--permit-columns.
+- Pages options: --pages, --prefix/--noprefix, --case/--nocase.
+- Filter options: --replace, --raw, --utf, --notab, --nonl.
+- Dump options: --rows, --notags.
+- Tool-specific options: --footer, --format, --table-delim.
 
 ## Warnings
 - Missing page names in the focus list are reported as warnings.

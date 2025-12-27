@@ -24,12 +24,15 @@ Requirements:
 - Strict parsing is the default; use --permit, --permit-header, or --permit-columns to continue past header mismatches or malformed rows.
 - Use --rows DIR to dump rows (raw row values) to numbered .txt files for debugging.
 
-CLI options (by tool):
-- Shared standard + pages options (all tools): --input, --output-dir (writers only), --pages, --prefix/--noprefix, --case/--nocase, --lines, --bytes, --csv, --permit/--permit-header/--permit-columns.
-- Shared dump options (all tools): --rows DIR (dump rows). --notags is only supported by pages_text.py/pages_content.py because only those tools strip HTML.
-- pages_list.py: --only, --details. Output is written to stdout; if --output-dir is provided, pages_list.csv is also written there.
-- pages_text.py: --footer, --notags (dump notags), plus filter flags (--replace/--raw/--utf/--notab/--nonl).
-- pages_content.py: --footer, --format, --table-delim, --notags (dump notags), plus filter flags (--replace/--raw/--utf/--notab/--nonl).
+CLI options (ordered groups):
+- Standard options (all tools): --input, --output-dir (writers only), --lines, --bytes, --csv, --permit/--permit-header/--permit-columns.
+- Pages options (all tools): --pages, --prefix/--noprefix, --case/--nocase.
+- Filter options (text/content only): --replace, --raw, --utf, --notab, --nonl.
+- Dump options: --rows DIR (dump rows). --notags is supported only by pages_text.py/pages_content.py because only those tools strip HTML.
+- Tool-specific options:
+  - pages_list.py: --only, --details. Output is written to stdout; if --output-dir is provided, pages_list.csv is also written there.
+  - pages_text.py: --footer.
+  - pages_content.py: --footer, --format, --table-delim.
 
 Terminology:
 - Column: database structure element (SQL/MySQL); column name is the header label (e.g., post_title).

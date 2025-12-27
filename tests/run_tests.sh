@@ -113,6 +113,15 @@ check_file_missing() {
   fi
 }
 
+check_file_exists() {
+  name="$1"
+  path="$2"
+  if [ ! -f "$path" ]; then
+    echo "FAIL: $name expected file at $path"
+    failures=$((failures + 1))
+  fi
+}
+
 check_stderr_contains() {
   name="$1"
   expected="$2"
@@ -126,6 +135,15 @@ run_list() {
   run defaults "$PYTHON_BIN" "${ROOT}/pages_list.py"     --input "${TESTS_DIR}/sample.out"     --pages "${TESTS_DIR}/sample.list"
   check_status defaults 0
   check_stdout defaults "${TESTS_DIR}/default_expected.csv"
+
+  pages_list_output_dir="${results}/pages_list_output"
+  run list_output_dir "$PYTHON_BIN" "${ROOT}/pages_list.py" \
+    --input "${TESTS_DIR}/sample.out" \
+    --pages "${TESTS_DIR}/sample.list" \
+    --output-dir "$pages_list_output_dir"
+  check_status list_output_dir 0
+  check_stdout list_output_dir "${TESTS_DIR}/default_expected.csv"
+  check_file list_output_dir "${pages_list_output_dir}/pages_list.csv" "${TESTS_DIR}/default_expected.csv"
 
   run exact "$PYTHON_BIN" "${ROOT}/pages_list.py"     --input "${TESTS_DIR}/sample.out"     --pages "${TESTS_DIR}/sample.list"     --only
   check_status exact 0
@@ -267,6 +285,17 @@ run_text() {
   check_file pages_text_basic "${pages_text_dir}/About.txt" "${TESTS_DIR}/pages_text_about_expected.txt"
   check_file pages_text_basic "${pages_text_dir}/Contact.txt" "${TESTS_DIR}/pages_text_contact_expected.txt"
 
+  pages_text_notags_dir="${results}/pages_text_notags"
+  run pages_text_notags "$PYTHON_BIN" "${ROOT}/pages_text.py" \
+    --input "${TESTS_DIR}/sample.out" \
+    --pages "${TESTS_DIR}/sample.list" \
+    --output-dir "$pages_text_notags_dir" \
+    --notags
+  check_status pages_text_notags 0
+  check_file_exists pages_text_notags "${pages_text_notags_dir}/Home_notags.txt"
+  check_file_exists pages_text_notags "${pages_text_notags_dir}/About_notags.txt"
+  check_file_exists pages_text_notags "${pages_text_notags_dir}/Contact_notags.txt"
+
   pages_text_nested="${results}/pages_text_nested/inner"
   run pages_text_output_dir_nested "$PYTHON_BIN" "${ROOT}/pages_text.py" \
     --input "${TESTS_DIR}/sample.out" \
@@ -336,6 +365,16 @@ run_content() {
   check_file pages_content_basic "${pages_content_dir}/Home.txt" "${TESTS_DIR}/pages_text_home_expected.txt"
   check_file pages_content_basic "${pages_content_dir}/About.txt" "${TESTS_DIR}/pages_text_about_expected.txt"
   check_file pages_content_basic "${pages_content_dir}/Contact.txt" "${TESTS_DIR}/pages_text_contact_expected.txt"
+
+  pages_content_notags_dir="${results}/pages_content_notags"
+  run pages_content_notags "$PYTHON_BIN" "${ROOT}/pages_content.py" \
+    --input "${TESTS_DIR}/content.out" \
+    --pages "${TESTS_DIR}/content.list" \
+    --output-dir "$pages_content_notags_dir" \
+    --notags
+  check_status pages_content_notags 0
+  check_file_exists pages_content_notags "${pages_content_notags_dir}/HTML_notags.txt"
+  check_file_exists pages_content_notags "${pages_content_notags_dir}/Dirty_notags.txt"
 
   pages_content_nested="${results}/pages_content_nested/inner"
   run pages_content_output_dir_nested "$PYTHON_BIN" "${ROOT}/pages_content.py" \
