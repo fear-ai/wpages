@@ -3,6 +3,7 @@ import unittest
 from test_pages import run_main
 
 from pages_content import clean_content, clean_md, _structure_warnings
+from pages_util import SanitizeCounts
 
 
 class TestPagesContent(unittest.TestCase):
@@ -20,7 +21,7 @@ class TestPagesContent(unittest.TestCase):
             'Link (https://example.com "Site")\n',
         )
 
-    def test_clean_content_link_bad_scheme(self) -> None:
+    def test_clean_content_link_blocked_scheme(self) -> None:
         text = '<a href="javascript:alert(1)">Link</a>'
         self.assertEqual(
             clean_content(text, table_delim=",", replace_char=""),
@@ -118,6 +119,23 @@ class TestPagesContent(unittest.TestCase):
             ),
             "ABC\n",
         )
+
+    def test_clean_content_counts(self) -> None:
+        counts = SanitizeCounts()
+        text = (
+            '<a href="javascript:alert(1)">Link</a>'
+            "<h2>H</h2>"
+            "<ul><li>One</li></ul>"
+            "<table><tr><td>A</td></tr></table>"
+            "<!--c-->"
+        )
+        clean_content(text, table_delim=",", replace_char="", counts=counts)
+        self.assertEqual(counts.anchors_conv, 1)
+        self.assertEqual(counts.blocked_scheme_links, 1)
+        self.assertEqual(counts.headings_conv, 1)
+        self.assertEqual(counts.lists_conv, 1)
+        self.assertEqual(counts.tables_conv, 1)
+        self.assertEqual(counts.comments_rm, 1)
 
     def test_clean_content_nested_lists(self) -> None:
         text = "<ul><li>One<ul><li>Sub</li></ul></li><li>Two</li></ul>"
@@ -244,7 +262,7 @@ class TestPagesContent(unittest.TestCase):
             '[Link](https://x "T")\n',
         )
 
-    def test_clean_md_link_bad_scheme(self) -> None:
+    def test_clean_md_link_blocked_scheme(self) -> None:
         text = '<a href="data:text/html">Link</a>'
         self.assertEqual(
             clean_md(text, replace_char=""),
@@ -258,7 +276,7 @@ class TestPagesContent(unittest.TestCase):
             '![Alt](img.png "T")\n',
         )
 
-    def test_clean_md_image_bad_scheme(self) -> None:
+    def test_clean_md_image_blocked_scheme(self) -> None:
         text = '<img src="blob:xyz" alt="Alt">'
         self.assertEqual(
             clean_md(text, replace_char=""),

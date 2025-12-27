@@ -26,8 +26,28 @@ def warn_count(label: str, count: int, *, path: Path | None = None) -> None:
     print(message, file=sys.stderr)
 
 
+def info_count(label: str, count: int, *, path: Path | None = None) -> None:
+    if not count:
+        return
+    if path is None:
+        message = f"Info: {label}: {count}"
+    else:
+        message = f"Info: {label}: {count} in {path}"
+    print(message, file=sys.stderr)
+
+
 def warn(message: str) -> None:
     print(f"Warning: {message}", file=sys.stderr)
+
+
+def info(message: str) -> None:
+    print(f"Info: {message}", file=sys.stderr)
+
+
+def info_page_count(label: str, count: int, page_name: str) -> None:
+    if not count:
+        return
+    info(f"{label}: {count} in page '{page_name}'")
 
 
 def error(message: str) -> None:
@@ -254,18 +274,18 @@ def emit_db_warnings(
     strict_header: bool,
     strict_columns: bool,
 ) -> None:
-    warn_count("Oversized line count", result.stats.skipped_oversized, path=input_path)
+    info_count("Oversized line count", result.stats.skipped_oversized, path=input_path)
     if not strict_columns:
-        warn_count("Malformed row count", result.stats.skipped_malformed, path=input_path)
+        info_count("Malformed row count", result.stats.skipped_malformed, path=input_path)
     if not strict_header:
         warn_if(
             result.stats.header_mismatch,
             format_header_error(input_path, result.stats.header_columns, EXPECTED_HEADER),
         )
-    warn_count("Invalid id count", result.stats.invalid_id_count)
-    warn_count("Duplicate id count", result.stats.duplicate_id_count)
-    warn_count("Unknown status count", result.stats.unknown_status_count)
-    warn_count("Invalid date count", result.stats.invalid_date_count)
+    info_count("Invalid id count", result.stats.invalid_id_count)
+    info_count("Duplicate id count", result.stats.duplicate_id_count)
+    info_count("Unknown status count", result.stats.unknown_status_count)
+    info_count("Invalid date count", result.stats.invalid_date_count)
     warn_if(
         result.stats.reached_limit,
         f"Line limit reached at line {result.stats.read_lines}.",

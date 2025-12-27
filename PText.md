@@ -14,6 +14,7 @@ Document small, low-risk improvements to the current plain text cleaning path
 - `--raw` disables character filtering; `--utf` allows Unicode; `--nonl` removes
   newlines; `--notab` disallows tabs (tabs are normalized to spaces regardless).
 - Output is ASCII by default; `--utf` or `--raw` switches output to UTF-8.
+- Sanitization and character filtering emit per-page Info counts (blocks/comments/tags/entities removed; control/zero-width/tab/newline/non-ASCII removals; replacement chars).
 - Collapses blank lines and ensures a trailing newline.
 - Optional footer stripping ("Resources"/"Community").
  - Parsing uses newline="\\n" to avoid splitting rows on bare \\r inside content.

@@ -184,7 +184,7 @@ run_list() {
   run permit_columns "$PYTHON_BIN" "${ROOT}/pages_list.py"     --input "${TESTS_DIR}/malformed.out"     --pages "${TESTS_DIR}/sample.list"     --permit-columns
   check_status permit_columns 0
   check_stdout permit_columns "${TESTS_DIR}/permit_columns_expected.csv"
-  check_stderr_contains permit_columns "Warning: Malformed row count: 1"
+  check_stderr_contains permit_columns "Info: Malformed row count: 1"
 
   run permit_both "$PYTHON_BIN" "${ROOT}/pages_list.py"     --input "${TESTS_DIR}/alt_header.out"     --pages "${TESTS_DIR}/sample.list"     --only --permit
   check_status permit_both 0
@@ -201,7 +201,7 @@ run_list() {
 
   run duplicate_id "$PYTHON_BIN" "${ROOT}/pages_list.py"     --input "${TESTS_DIR}/duplicate_id.out"     --pages "${TESTS_DIR}/sample.list"     --only
   check_status duplicate_id 0
-  check_stderr_contains duplicate_id "Warning: Duplicate id count: 1"
+  check_stderr_contains duplicate_id "Info: Duplicate id count: 1"
 
   run lines_limit "$PYTHON_BIN" "${ROOT}/pages_list.py"     --input "${TESTS_DIR}/sample.out"     --pages "${TESTS_DIR}/sample.list"     --only --lines 2
   check_status lines_limit 0

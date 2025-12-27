@@ -52,7 +52,7 @@ Concerns
 1) Input brittleness: raw dumps with literal tabs/newlines will misparse unless using mysql -e or --csv (see Decisions 1 and 2).
 2) Warning visibility: parse_dump returns stats only; non-CLI callers must surface warnings explicitly (see Decision 3).
 3) Memory scale: rows and content live in memory; large dumps need limits or profiling (see Decisions 4 and 5).
-4) Character removal/replacement is silent: no counts or warnings for stripped tags, script/style removal, ASCII drops, or --replace usage; defaults still drop non-ASCII. pages_text writes ASCII with errors="ignore" unless `--utf/--raw` (UTF-8), so data loss can be silent.
+4) Character removal/replacement is now summarized as Info counts per page (control/zero-width/tab/newline/non-ASCII removals and replacement chars). Sanitization steps (tags/blocks/entities) also emit Info counts. Data loss is still possible when ASCII-only output is used.
 
 Pending
 - Raw dump/backslash unescaping decisions (see Decisions 1-2).

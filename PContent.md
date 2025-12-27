@@ -103,7 +103,8 @@ and stronger character handling while keeping the implementation lightweight.
 - Attribute extraction is regex-based and does not fully parse malformed HTML.
 - Unquoted values stop at whitespace; `>` inside quoted values can truncate tags.
 - Values are HTML-unescaped after extraction; entities in `href/src` are decoded.
-- Bad schemes (`javascript`, `data`, `vbscript`, `file`, `blob`) are dropped and
+- Blocked schemes (`about`, `blob`, `chrome`, `chrome-extension`, `data`, `file`,
+  `filesystem`, `javascript`, `moz-extension`, `vbscript`) are dropped and
   rendered as bracketed labels to require manual review.
 - Scripts/styles/comments are stripped before link/image extraction; no extra
   URL normalization is applied beyond trimming and scheme checks.
@@ -116,8 +117,11 @@ and stronger character handling while keeping the implementation lightweight.
 4) Remaining tags are stripped, then character filtering runs.
 
 Implications:
+- Control/zero-width/bidi characters and whitespace are suppressed in `href/src`
+  values before scheme checks to avoid suspicious URL characters.
 - Control/zero-width/bidi characters are removed after URL extraction, so they
-  can appear in extracted URLs before filtering.
+  can appear in extracted URLs before filtering when `--raw` is used.
+- Non-HTTP(S) schemes are accepted but emit warnings per page.
 - Embedded newlines/tabs inside quoted attributes can survive extraction and
   become actual line breaks or tabs in output (filtering preserves `\n`/`\t`).
 - Unquoted attributes stop at whitespace, so spaces/newlines truncate URLs.
@@ -159,6 +163,7 @@ In addition to the shared options from `pages_cli.py`:
 - Malformed list/table tags emit warnings based on opening/closing tag counts.
 - Parsing warnings from `pages_db.py` (header mismatch, malformed rows, limits)
   are emitted before content extraction when present.
+- Sanitization and character filtering emit per-page Info counts (blocks/comments/tags/entities removed; conversions; control/zero-width/tab/newline/non-ASCII removals; replacement chars).
 
 ## Notes and Limitations
 - HTML output is postponed.

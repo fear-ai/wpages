@@ -3,6 +3,7 @@ import unittest
 from test_pages import run_main
 
 from pages_text import clean_text
+from pages_util import SanitizeCounts
 
 
 class TestPagesText(unittest.TestCase):
@@ -40,6 +41,15 @@ class TestPagesText(unittest.TestCase):
             clean_text(text, replace_char="", keep_tabs=False, keep_newlines=False),
             "ABC\n",
         )
+
+    def test_clean_text_counts(self) -> None:
+        counts = SanitizeCounts()
+        text = "<script>x</script><!--c--><b>Hi</b>&amp;"
+        self.assertEqual(clean_text(text, counts=counts), "Hi\n")
+        self.assertEqual(counts.blocks_rm, 1)
+        self.assertEqual(counts.comments_rm, 1)
+        self.assertEqual(counts.tags_rm, 2)
+        self.assertEqual(counts.entities_rm, 1)
 
 
 if __name__ == "__main__":

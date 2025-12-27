@@ -1,11 +1,52 @@
 #!/usr/bin/env python3
 import re
 import unicodedata
+from dataclasses import dataclass
 
 WINDOWS_RESERVED_NAMES = {"CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"}
 # Windows-invalid filename characters plus ASCII control bytes (0x00-0x1F, 0x7F).
 INVALID_CHARS_RE = re.compile("[<>:\"/\\\\|?*\x00-\x1F\x7F]")
 ZERO_WIDTH = {"\u200b", "\u200c", "\u200d", "\ufeff"}
+BLOCKED_SCHEMES = {
+    "about",
+    "blob",
+    "chrome",
+    "chrome-extension",
+    "data",
+    "file",
+    "filesystem",
+    "javascript",
+    "moz-extension",
+    "vbscript",
+}
+
+
+@dataclass
+class FilterCounts:
+    re_control: int = 0
+    re_zero: int = 0
+    re_tab: int = 0
+    re_nl: int = 0
+    re_non_ascii: int = 0
+    rep_chars: int = 0
+
+
+@dataclass
+class SanitizeCounts:
+    blocks_rm: int = 0
+    comments_rm: int = 0
+    tags_rm: int = 0
+    entities_rm: int = 0
+    anchors_conv: int = 0
+    images_conv: int = 0
+    headings_conv: int = 0
+    lists_conv: int = 0
+    tables_conv: int = 0
+    blocks_conv: int = 0
+    blocked_scheme_links: int = 0
+    blocked_scheme_images: int = 0
+    other_scheme_links: int = 0
+    other_scheme_images: int = 0
 
 
 def decode_mysql_escapes(text: str) -> str:
@@ -21,26 +62,54 @@ def filter_characters(
     keep_newlines: bool = True,
     keep_tabs: bool = True,
     ascii_only: bool = True,
+    counts: FilterCounts | None = None,
 ) -> str:
     normalized = unicodedata.normalize("NFKD", text) if ascii_only else text
     out: list[str] = []
     last_replaced = False
     for ch in normalized:
-        if keep_newlines and ch == "\n":
-            out.append("\n")
-            last_replaced = False
+        if ch == "\n":
+            if keep_newlines:
+                out.append("\n")
+                last_replaced = False
+            else:
+                if counts is not None:
+                    counts.re_nl += 1
+                if replace_char and not last_replaced:
+                    out.append(replace_char)
+                    if counts is not None:
+                        counts.rep_chars += 1
+                    last_replaced = True
             continue
-        if keep_tabs and ch == "\t":
-            out.append("\t")
-            last_replaced = False
+        if ch == "\t":
+            if keep_tabs:
+                out.append("\t")
+                last_replaced = False
+            else:
+                if counts is not None:
+                    counts.re_tab += 1
+                if replace_char and not last_replaced:
+                    out.append(replace_char)
+                    if counts is not None:
+                        counts.rep_chars += 1
+                    last_replaced = True
             continue
         code = ord(ch)
         is_control = code < 0x20 or code == 0x7F
         is_zero_width = ch in ZERO_WIDTH
         is_non_ascii = code >= 0x80
         if is_control or is_zero_width or (ascii_only and is_non_ascii):
+            if counts is not None:
+                if is_control:
+                    counts.re_control += 1
+                elif is_zero_width:
+                    counts.re_zero += 1
+                elif is_non_ascii:
+                    counts.re_non_ascii += 1
             if replace_char and not last_replaced:
                 out.append(replace_char)
+                if counts is not None:
+                    counts.rep_chars += 1
                 last_replaced = True
             continue
         out.append(ch)

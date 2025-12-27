@@ -105,7 +105,8 @@ expect the situation per dump or per page; confirm with `db.out`.
     - Long data URIs (`data:`) can bloat output.
     - `javascript:` and `data:` URLs require explicit policy decisions.
     - Invalid byte sequences can appear with encoding mismatches.
-  - Bad schemes to drop: `javascript`, `data`, `vbscript`, `file`, `blob`.
+  - Blocked schemes to drop: `about`, `blob`, `chrome`, `chrome-extension`, `data`,
+    `file`, `filesystem`, `javascript`, `moz-extension`, `vbscript`.
 
 ### Features
 - Sanitized output with strong safety controls.

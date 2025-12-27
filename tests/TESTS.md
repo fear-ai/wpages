@@ -117,11 +117,11 @@ pages_list.py CLI tests (details, prefix, and overlap):
 pages_list.py CLI tests (warnings and limits):
 - Oversized line skip: python3 pages_list.py --input tests/oversized.out --pages tests/sample.list --details -> stdout tests/details_oversized_expected.csv.
 - Permit header mismatch: python3 pages_list.py --input tests/alt_header.out --pages tests/sample.list --only --permit-header -> stdout tests/permit_header_expected.csv, stderr contains "Warning: Header error".
-- Permit malformed rows: python3 pages_list.py --input tests/malformed.out --pages tests/sample.list --permit-columns -> stdout tests/permit_columns_expected.csv, stderr contains "Warning: Malformed row count: 1".
+- Permit malformed rows: python3 pages_list.py --input tests/malformed.out --pages tests/sample.list --permit-columns -> stdout tests/permit_columns_expected.csv, stderr contains "Info: Malformed row count: 1".
 - Permit both: python3 pages_list.py --input tests/alt_header.out --pages tests/sample.list --only --permit -> stdout tests/permit_header_expected.csv, stderr contains "Warning: Header error".
 - Duplicate focus names: python3 pages_list.py --input tests/sample.out --pages tests/dups.list --only -> stderr contains "Warning: Duplicate page name skipped: Home".
 - Duplicate focus names (nocase): python3 pages_list.py --input tests/sample.out --pages tests/case_dups.list --only --nocase -> stderr contains "Warning: Duplicate page name skipped: contact".
-- Duplicate id warning: python3 pages_list.py --input tests/duplicate_id.out --pages tests/sample.list --only -> stderr contains "Warning: Duplicate id count: 1".
+- Duplicate id warning: python3 pages_list.py --input tests/duplicate_id.out --pages tests/sample.list --only -> stderr contains "Info: Duplicate id count: 1".
 - Missing focus warning: python3 pages_list.py --input tests/missing_row.out --pages tests/missing_page.list --details -> stderr contains "Warning: Missing page: Missing".
 - Line limit: python3 pages_list.py --input tests/sample.out --pages tests/sample.list --only --lines 2 -> stderr contains "Warning: Line limit reached at line 2."
 
@@ -172,7 +172,7 @@ pages_text.py unit tests:
 
 pages_content.py unit tests:
 - tests/test_pages_content.py covers links, entities, headings, lists (including nested lists), tables, MySQL escapes, block removal, ASCII output, raw-mode preservation, --notab/--nonl behavior, and Markdown conversions.
-- Coverage highlights: text output link conversion (including titles and bad schemes), table delimiter handling, zero-width removal/replacement, Markdown headings/lists/tables (including ordered lists), image/link conversion (including titles and bad schemes), pre/code handling (including attributes and mixed nesting), and list/table malformed tag warnings.
+- Coverage highlights: text output link conversion (including titles and blocked schemes), table delimiter handling, zero-width removal/replacement, Markdown headings/lists/tables (including ordered lists), image/link conversion (including titles and blocked schemes), pre/code handling (including attributes and mixed nesting), and list/table malformed tag warnings.
 - Gaps and problems: no tests for malformed tags/unterminated attributes, attribute values with whitespace, bidi controls, or data URIs beyond scheme blocking; Markdown does not emit table header separators; regex parsing can mis-handle `>` inside quoted attributes.
 
 Test issues and gaps (pending):

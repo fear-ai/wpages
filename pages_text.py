@@ -8,13 +8,21 @@ from pages_cli import (
     add_filter_args,
     emit_db_warnings,
     error,
+    info_page_count,
     load_focus_entries,
     parse_dump_checked,
     resolve_filter_args,
     validate_limits,
     warn,
 )
-from pages_util import decode_mysql_escapes, filter_characters, safe_filename, strip_footer
+from pages_util import (
+    FilterCounts,
+    SanitizeCounts,
+    decode_mysql_escapes,
+    filter_characters,
+    safe_filename,
+    strip_footer,
+)
 from pages_focus import match_entries
 
 
@@ -26,6 +34,8 @@ def clean_text(
     ascii_only: bool = True,
     raw: bool = False,
     keep_tabs: bool = False,
+    counts: SanitizeCounts | None = None,
+    filter_counts: FilterCounts | None = None,
 ) -> str:
     if not text:
         return ""
@@ -33,14 +43,22 @@ def clean_text(
     text = decode_mysql_escapes(text)
 
     # Remove scripts, styles, and comments to avoid inline code.
-    text = re.sub(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", text)
-    text = re.sub(r"(?s)<!--.*?-->", " ", text)
+    text, blocks_rm = re.subn(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", text)
+    if counts is not None:
+        counts.blocks_rm += blocks_rm
+    text, comments_rm = re.subn(r"(?s)<!--.*?-->", " ", text)
+    if counts is not None:
+        counts.comments_rm += comments_rm
 
     # Strip all remaining tags.
-    text = re.sub(r"(?s)<[^>]+>", " ", text)
+    text, tags_rm = re.subn(r"(?s)<[^>]+>", " ", text)
+    if counts is not None:
+        counts.tags_rm += tags_rm
 
     # Strip HTML entities and normalize whitespace.
-    text = re.sub(r"&[A-Za-z0-9#]+;", " ", text)
+    text, entities_rm = re.subn(r"&[A-Za-z0-9#]+;", " ", text)
+    if counts is not None:
+        counts.entities_rm += entities_rm
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     if not raw:
         text = filter_characters(
@@ -49,6 +67,7 @@ def clean_text(
             keep_tabs=keep_tabs,
             keep_newlines=keep_newlines,
             ascii_only=ascii_only,
+            counts=filter_counts,
         )
     lines = [re.sub(r"[ \t]+", " ", line).strip() for line in text.split("\n")]
 
@@ -154,6 +173,8 @@ def main() -> int:
         if match.row is None:
             warn(f"Missing page: {match.entry.name}")
             continue
+        sanitize_counts = SanitizeCounts()
+        filter_counts = FilterCounts()
         cleaned = clean_text(
             match.row.content,
             replace_char=replace_char,
@@ -161,6 +182,8 @@ def main() -> int:
             ascii_only=ascii_only,
             raw=raw,
             keep_tabs=keep_tabs,
+            counts=sanitize_counts,
+            filter_counts=filter_counts,
         )
         if not args.footer:
             cleaned = strip_footer(cleaned)
@@ -175,6 +198,26 @@ def main() -> int:
             error(f"output file could not be written: {out_path} ({exc})")
             return 1
         print(f"Wrote {out_path} ({match.row.id}, {match.label})")
+        info_page_count("Blocks removed", sanitize_counts.blocks_rm, match.entry.name)
+        info_page_count(
+            "Comments removed", sanitize_counts.comments_rm, match.entry.name
+        )
+        info_page_count("Tags removed", sanitize_counts.tags_rm, match.entry.name)
+        info_page_count(
+            "Entities removed", sanitize_counts.entities_rm, match.entry.name
+        )
+        info_page_count(
+            "Control chars removed", filter_counts.re_control, match.entry.name
+        )
+        info_page_count("Zero-width removed", filter_counts.re_zero, match.entry.name)
+        info_page_count("Tabs removed", filter_counts.re_tab, match.entry.name)
+        info_page_count("Newlines removed", filter_counts.re_nl, match.entry.name)
+        info_page_count(
+            "Non-ASCII removed", filter_counts.re_non_ascii, match.entry.name
+        )
+        info_page_count(
+            "Replacement chars", filter_counts.rep_chars, match.entry.name
+        )
 
     return 0
 

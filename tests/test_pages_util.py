@@ -2,7 +2,13 @@ import unittest
 
 from test_pages import run_main
 
-from pages_util import decode_mysql_escapes, filter_characters, safe_filename, strip_footer
+from pages_util import (
+    FilterCounts,
+    decode_mysql_escapes,
+    filter_characters,
+    safe_filename,
+    strip_footer,
+)
 
 
 class TestPagesUtil(unittest.TestCase):
@@ -70,6 +76,25 @@ class TestPagesUtil(unittest.TestCase):
             filter_characters(text, " ", ascii_only=False),
             "Caf\u00e9",
         )
+
+    def test_filter_characters_counts(self) -> None:
+        counts = FilterCounts()
+        text = "\t\nA\u200bB\x01C\u00e9"
+        cleaned = filter_characters(
+            text,
+            "?",
+            keep_tabs=False,
+            keep_newlines=False,
+            ascii_only=True,
+            counts=counts,
+        )
+        self.assertEqual(cleaned, "?A?B?Ce?")
+        self.assertEqual(counts.re_tab, 1)
+        self.assertEqual(counts.re_nl, 1)
+        self.assertEqual(counts.re_zero, 1)
+        self.assertEqual(counts.re_control, 1)
+        self.assertEqual(counts.re_non_ascii, 1)
+        self.assertEqual(counts.rep_chars, 4)
 
 
 if __name__ == "__main__":
