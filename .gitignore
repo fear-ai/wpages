@@ -7,16 +7,20 @@
 #
 # Copy to project root: cp lignore/.gitignore ./.gitignore
 # ============================================================================
-db.out
-pages.list
-results/
-pages/
-footers/
 
 # ============================================================================
 # Custom Project Patterns
 # ============================================================================
 # Add your project-specific patterns below this line
+db.out
+pages.list
+results/
+pages/
+footers/
+content/
+list/
+md/
+text/
 tests/results_*/
 tests/results_*
 
