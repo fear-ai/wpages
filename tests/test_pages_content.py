@@ -3,7 +3,7 @@ import unittest
 from test_pages import run_main
 
 from pages_content import clean_content, clean_md, _structure_warnings
-from pages_util import SanitizeCounts
+from pages_util import FilterCounts, SanitizeCounts
 
 
 class TestPagesContent(unittest.TestCase):
@@ -25,7 +25,7 @@ class TestPagesContent(unittest.TestCase):
         text = '<a href="javascript:alert(1)">Link</a>'
         self.assertEqual(
             clean_content(text, table_delim=",", replace_char=""),
-            "[Link]\n",
+            "{Link}\n",
         )
 
     def test_clean_content_link_missing_scheme(self) -> None:
@@ -34,6 +34,26 @@ class TestPagesContent(unittest.TestCase):
             clean_content(text, table_delim=",", replace_char=""),
             "Link ({scheme?}://example.com/path)\n",
         )
+
+    def test_clean_content_anchor_unterminated_attr(self) -> None:
+        text = '<a href="https://example.com>Link</a>'
+        self.assertEqual(
+            clean_content(text, table_delim=",", replace_char=""),
+            "Link\n",
+        )
+
+    def test_clean_content_anchor_title_whitespace(self) -> None:
+        text = '<a href="https://example.com" title="My Site Name">Link</a>'
+        self.assertEqual(
+            clean_content(text, table_delim=",", replace_char=""),
+            'Link (https://example.com "My Site Name")\n',
+        )
+
+    def test_clean_content_missing_scheme_counts(self) -> None:
+        counts = SanitizeCounts()
+        text = '<a href="//example.com/path">Link</a>'
+        clean_content(text, table_delim=",", replace_char="", counts=counts)
+        self.assertEqual(counts.missing_scheme_links, 1)
 
     def test_clean_content_anchor_nested(self) -> None:
         text = '<a href="https://example.com"><span>Go</span></a>'
@@ -47,6 +67,23 @@ class TestPagesContent(unittest.TestCase):
         self.assertEqual(
             clean_content(text, table_delim=",", replace_char=""),
             "One (https://x) Two (https://y)\n",
+        )
+
+    def test_clean_content_anchor_image_adjacent_text(self) -> None:
+        text = '<a href="//example.com"><img src="logo.png" alt="Logo"></a>Next'
+        self.assertEqual(
+            clean_content(text, table_delim=",", replace_char=""),
+            "Logo ({scheme?}://example.com) Next\n",
+        )
+
+    def test_clean_content_anchor_image_label_fallback(self) -> None:
+        text = (
+            '<a href="https://example.com"><img src="logo.png"></a>'
+            '<a href="https://next">Next</a>'
+        )
+        self.assertEqual(
+            clean_content(text, table_delim=",", replace_char=""),
+            "image (https://example.com) Next (https://next)\n",
         )
 
     def test_clean_content_entities(self) -> None:
@@ -150,6 +187,41 @@ class TestPagesContent(unittest.TestCase):
         self.assertEqual(counts.lists_conv, 1)
         self.assertEqual(counts.tables_conv, 1)
         self.assertEqual(counts.comments_rm, 1)
+
+    def test_clean_content_counts_blocks_tags_entities(self) -> None:
+        counts = SanitizeCounts()
+        text = "<script>x</script><!--c--><b>Hi</b>&amp;<p>X</p>"
+        clean_content(text, table_delim=",", replace_char="", counts=counts)
+        self.assertEqual(counts.blocks_rm, 1)
+        self.assertEqual(counts.comments_rm, 1)
+        self.assertEqual(counts.tags_rm, 2)
+        self.assertEqual(counts.entities_rm, 1)
+        self.assertEqual(counts.blocks_conv, 2)
+
+    def test_clean_content_other_scheme_link_counts(self) -> None:
+        counts = SanitizeCounts()
+        text = '<a href="mailto:hi@example.com">Mail</a>'
+        clean_content(text, table_delim=",", replace_char="", counts=counts)
+        self.assertEqual(counts.other_scheme_links, 1)
+
+    def test_clean_content_filter_counts(self) -> None:
+        counts = FilterCounts()
+        text = "\t\nA\u200bB\x01C\u00e9"
+        clean_content(
+            text,
+            table_delim=",",
+            replace_char="?",
+            keep_tabs=False,
+            keep_newlines=False,
+            ascii_only=True,
+            filter_counts=counts,
+        )
+        self.assertEqual(counts.re_tab, 1)
+        self.assertEqual(counts.re_nl, 1)
+        self.assertEqual(counts.re_zero, 1)
+        self.assertEqual(counts.re_control, 1)
+        self.assertEqual(counts.re_non_ascii, 1)
+        self.assertEqual(counts.rep_chars, 4)
 
     def test_clean_content_notags_sink(self) -> None:
         seen: list[str] = []
@@ -326,6 +398,20 @@ class TestPagesContent(unittest.TestCase):
             "[Link](https://x) ![Alt](img.png)\n",
         )
 
+    def test_clean_md_nested_lists(self) -> None:
+        text = "<ul><li>One<ul><li>Sub</li></ul></li><li>Two</li></ul>"
+        self.assertEqual(
+            clean_md(text, replace_char=""),
+            "- One\n- Sub\n- Two\n",
+        )
+
+    def test_clean_md_table_basic(self) -> None:
+        text = "<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>"
+        self.assertEqual(
+            clean_md(text, replace_char=""),
+            "A | B\n1 | 2\n",
+        )
+
     def test_clean_md_link_title(self) -> None:
         text = '<a href="https://x" title="T">Link</a>'
         self.assertEqual(
@@ -337,7 +423,7 @@ class TestPagesContent(unittest.TestCase):
         text = '<a href="data:text/html">Link</a>'
         self.assertEqual(
             clean_md(text, replace_char=""),
-            "[Link]\n",
+            "{Link}\n",
         )
 
     def test_clean_md_anchor_adjacent(self) -> None:
@@ -365,8 +451,25 @@ class TestPagesContent(unittest.TestCase):
         text = '<img src="blob:xyz" alt="Alt">'
         self.assertEqual(
             clean_md(text, replace_char=""),
-            "[Alt]\n",
+            "{Alt}\n",
         )
+
+    def test_clean_md_image_missing_scheme_counts(self) -> None:
+        counts = SanitizeCounts()
+        text = '<img src="//img.test/x.png" alt="Alt">'
+        clean_md(text, replace_char="", counts=counts)
+        self.assertEqual(counts.missing_scheme_images, 1)
+
+    def test_clean_md_image_counts(self) -> None:
+        counts = SanitizeCounts()
+        text = (
+            '<img src="data:text/plain,Hi" alt="Alt">'
+            '<img src="ftp://x/y.png" alt="Alt2">'
+        )
+        clean_md(text, replace_char="", counts=counts)
+        self.assertEqual(counts.images_conv, 2)
+        self.assertEqual(counts.blocked_scheme_images, 1)
+        self.assertEqual(counts.other_scheme_images, 1)
 
     def test_clean_md_notags_sink(self) -> None:
         seen: list[str] = []

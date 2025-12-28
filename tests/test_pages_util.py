@@ -61,6 +61,19 @@ class TestPagesUtil(unittest.TestCase):
         self.assertTrue(result.endswith(".txt"))
         self.assertEqual(len(result), 255)
 
+    def test_safe_filename_trailing_dots_spaces(self) -> None:
+        self.assertEqual(safe_filename(" Name. "), "Name.txt")
+
+    def test_safe_filename_long_extension(self) -> None:
+        name = "A" * 300
+        result = safe_filename(name, ".markdown")
+        self.assertTrue(result.endswith(".markdown"))
+        self.assertEqual(len(result), 255)
+
+    def test_safe_filename_empty_base_collision(self) -> None:
+        existing = {"page.txt"}
+        self.assertEqual(safe_filename("   ", existing=existing), "page_1.txt")
+
     def test_filter_characters_ascii(self) -> None:
         text = "A\u200bB\u00e9\x01"
         self.assertEqual(filter_characters(text, " "), "A Be ")

@@ -406,6 +406,63 @@ run_content() {
   check_file_missing pages_content_missing "${pages_content_missing_dir}/Missing.txt"
   check_stderr_contains pages_content_missing "Warning: Missing page: Missing"
 
+  pages_content_counts_dir="${results}/pages_content_counts"
+  run pages_content_counts "$PYTHON_BIN" "${ROOT}/pages_content.py" \
+    --input "${TESTS_DIR}/content_counts.tsv" \
+    --pages "${TESTS_DIR}/content_counts.list" \
+    --output-dir "$pages_content_counts_dir"
+  check_status pages_content_counts 0
+  check_file_exists pages_content_counts "${pages_content_counts_dir}/Counts.txt"
+  check_stderr_contains pages_content_counts \
+    "Warning: Missing scheme links: 1 in page 'Counts'"
+  check_stderr_contains pages_content_counts \
+    "Warning: Non-HTTP scheme links: 1 in page 'Counts'"
+  check_stderr_contains pages_content_counts \
+    "Info: Blocks removed: 1 in page 'Counts'"
+  check_stderr_contains pages_content_counts \
+    "Info: Tags removed: 4 in page 'Counts'"
+  check_stderr_contains pages_content_counts \
+    "Info: Entities removed: 1 in page 'Counts'"
+  check_stderr_contains pages_content_counts \
+    "Info: Blocked scheme links: 1 in page 'Counts'"
+  check_stderr_contains pages_content_counts \
+    "Warning: Malformed list structure: <li> 2 != </li> 0 in page 'Counts'"
+  check_stderr_contains pages_content_counts \
+    "Warning: Malformed table structure: <tr> 1 != </tr> 0 in page 'Counts'"
+
+  pages_content_counts_md_dir="${results}/pages_content_counts_md"
+  run pages_content_counts_md "$PYTHON_BIN" "${ROOT}/pages_content.py" \
+    --input "${TESTS_DIR}/content_counts.tsv" \
+    --pages "${TESTS_DIR}/content_counts.list" \
+    --output-dir "$pages_content_counts_md_dir" \
+    --format markdown
+  check_status pages_content_counts_md 0
+  check_file_exists pages_content_counts_md "${pages_content_counts_md_dir}/Counts.md"
+  check_stderr_contains pages_content_counts_md \
+    "Warning: Missing scheme links: 1 in page 'Counts'"
+  check_stderr_contains pages_content_counts_md \
+    "Warning: Non-HTTP scheme links: 1 in page 'Counts'"
+  check_stderr_contains pages_content_counts_md \
+    "Warning: Non-HTTP scheme images: 1 in page 'Counts'"
+  check_stderr_contains pages_content_counts_md \
+    "Info: Blocks removed: 1 in page 'Counts'"
+  check_stderr_contains pages_content_counts_md \
+    "Info: Comments removed: 1 in page 'Counts'"
+  check_stderr_contains pages_content_counts_md \
+    "Info: Entities removed: 1 in page 'Counts'"
+  check_stderr_contains pages_content_counts_md \
+    "Info: Anchors converted: 3 in page 'Counts'"
+  check_stderr_contains pages_content_counts_md \
+    "Info: Images converted: 2 in page 'Counts'"
+  check_stderr_contains pages_content_counts_md \
+    "Info: Blocked scheme links: 1 in page 'Counts'"
+  check_stderr_contains pages_content_counts_md \
+    "Info: Blocked scheme images: 1 in page 'Counts'"
+  check_stderr_contains pages_content_counts_md \
+    "Warning: Malformed list structure: <li> 2 != </li> 0 in page 'Counts'"
+  check_stderr_contains pages_content_counts_md \
+    "Warning: Malformed table structure: <tr> 1 != </tr> 0 in page 'Counts'"
+
   pages_content_html_dir="${results}/pages_content_html_default"
   run pages_content_html_default "$PYTHON_BIN" "${ROOT}/pages_content.py" \
     --input "${TESTS_DIR}/content.out" \

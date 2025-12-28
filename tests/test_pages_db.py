@@ -174,6 +174,35 @@ class TestPagesDB(unittest.TestCase):
             self.assertEqual(result.rows[0].id, "1")
             self.assertEqual(result.rows[1].id, "2")
 
+    def test_embedded_newline_raw_dump(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "embedded_newline.out"
+            content = (
+                b"id\tpost_title\tpost_content\tpost_status\tpost_date\n"
+                b"1\tTitle\tLine1\nLine2\tpublish\t2023-01-01\n"
+            )
+            path.write_bytes(content)
+            with self.assertRaises(ParseError) as raised:
+                parse_dump(path)
+            message = str(raised.exception)
+            self.assertIn("line 2", message)
+            self.assertIn("expected 5 columns", message)
+
+    def test_cr_only_newlines_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "cr_only.out"
+            content = (
+                b"id\tpost_title\tpost_content\tpost_status\tpost_date\r"
+                b"1\tA\tX\tpublish\t2023-01-01\r"
+                b"2\tB\tY\tdraft\t2023-01-02\r"
+            )
+            path.write_bytes(content)
+            with self.assertRaises(ParseError) as raised:
+                parse_dump(path)
+            message = str(raised.exception)
+            self.assertIn("Header error", message)
+            self.assertIn(str(path), message)
+
     def test_include_content_false(self) -> None:
         result = parse_dump(TESTS_DIR / "sample.out", include_content=False)
         self.assertEqual(result.rows[0].content, "")

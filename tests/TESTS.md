@@ -8,7 +8,7 @@ Applicability:
 - pages_focus.py unit tests validate focus list parsing and matching helpers.
 - pages_cli.py unit tests validate CLI helpers (limits, parsing errors, warning emission).
 - pages_text.py unit tests validate clean_text behavior.
-- pages_util.py unit tests validate shared helper behavior (decode_mysql_escapes, safe_filename, strip_footer).
+- pages_util.py unit tests validate shared helper behavior (decode_mysql_escapes, safe_filename, strip_footer), including filename edge cases (trailing dots/spaces, long extensions, empty-base collisions).
 - pages_content.py unit tests validate clean_content and clean_md behavior.
 
 Runner and conventions:
@@ -24,7 +24,8 @@ Runner and conventions:
 - Optional dump rows: pass --rows DIR to any CLI to dump raw row values to numbered .txt files.
 
 File types:
-- *.out: mysql tab dump fixtures with a header row and tab-delimited values.
+- *.out: mysql tab dump fixtures with a header row and tab-delimited values (ignored by git via *.out).
+- *.tsv: mysql tab dump fixtures that must be preserved/versioned (same format as *.out).
 - *.list: pages.list fixtures (comma- or newline-separated names).
 - *_expected.csv: expected CSV output from pages_list.py.
 - *_expected.txt: expected text output from pages_text.py/pages_content.py.
@@ -32,6 +33,7 @@ File types:
 
 Fixtures:
 - *.out files are small mysql tab dumps with a header row and tab-delimited column values.
+- *.tsv files use the same format as *.out.
 - *.list files are pages.list entries (one per line or comma-separated) matched against post_title.
 - tests/no_pages_list/ and tests/empty_pages_list/ are working directories for missing/empty default pages.list.
 - Expected outputs live in tests/*_expected.csv, tests/pages_text_*_expected.txt, and tests/*.md for Markdown output.
@@ -57,7 +59,9 @@ Input fixtures:
 - tests/invalid.list: commas/whitespace only (no names) to trigger --only empty-list error.
 - tests/missing_page.list: focus list with one missing entry to trigger missing-page warnings.
 - tests/content.out: HTML-heavy content and a row with non-ASCII/zero-width characters for pages_content tests.
+- tests/content_counts.tsv: HTML with malformed list/table tags and mixed schemes (missing/blocked/non-HTTP) for CLI warning coverage.
 - tests/content.list: HTML/Dirty entries for pages_content CLI tests.
+- tests/content_counts.list: Counts entry for content_counts.tsv.
 - tests/escapes.list: Escapes entry for escapes.out CLI tests.
 
 Expected outputs:
@@ -84,7 +88,7 @@ Expected outputs:
 Unit tests (by module):
 
 pages_db.py unit tests:
-- tests/test_pages_db.py covers empty file, bad header, malformed rows (strict vs non-strict), limits, and use_csv on a normal fixture.
+- tests/test_pages_db.py covers empty file, bad header, malformed rows (strict vs non-strict), limits, use_csv on a normal fixture, embedded newlines in raw dumps, and CR-only newlines.
 - parse_dump covers CRLF and LF newline handling and strict_header=False coverage with header_mismatch stats.
 - Coverage includes FileNotFoundError, invalid id/status/date counts, duplicate id count, index helpers, and pick_best.
 - parse_dump includes a use_csv test with an escaped delimiter (backslash + tab) and confirms the default split misparses that case.
@@ -189,18 +193,27 @@ Base (missing): python3 pages_content.py --input tests/missing_row.out --pages t
 Base (escapes): python3 pages_content.py --input tests/escapes.out --pages tests/escapes.list --output-dir DIR
 - No tabs/newlines: Base --notab --nonl -> Escapes.txt matches tests/escapes_notab_nonl_expected.txt.
 
+Base (counts): python3 pages_content.py --input tests/content_counts.tsv --pages tests/content_counts.list --output-dir DIR
+- Emits warnings for malformed list/table structure and missing/non-HTTP scheme links, plus Info counts for blocks/tags/entities and blocked scheme links.
+- Markdown variant: Base --format markdown also warns for non-HTTP scheme images.
+
 pages_text.py unit tests:
 - tests/test_pages_text.py covers script/style/comment stripping, entity stripping, MySQL escape decoding, whitespace handling, character filtering, raw-mode preservation, and --notab/--nonl behavior.
+- Coverage includes FilterCounts integration (control/zero-width/tab/newline/non-ASCII removals and replacement char counts) through clean_text.
 
 pages_content.py unit tests:
 - tests/test_pages_content.py covers links, entities, headings, lists (including nested lists), tables, MySQL escapes, block removal, ASCII output, raw-mode preservation, --notab/--nonl behavior, and Markdown conversions.
 - Coverage highlights: text output link conversion (including titles and blocked schemes), table delimiter handling, zero-width removal/replacement, Markdown headings/lists/tables (including ordered lists), image/link conversion (including titles and blocked schemes), pre/code handling (including attributes and mixed nesting), and list/table malformed tag warnings.
-- Gaps and problems: no tests for malformed tags/unterminated attributes, attribute values with whitespace, bidi controls, or data URIs beyond scheme blocking; Markdown does not emit table header separators; regex parsing can mis-handle `>` inside quoted attributes.
+- Coverage includes SanitizeCounts and FilterCounts integration (blocks/tags/entities removed, conversions, missing/blocked/other scheme counts, and filter removal counts).
+- Gaps and problems: no tests for bidi controls or data URIs beyond scheme blocking; Markdown does not emit table header separators; regex parsing can mis-handle `>` inside quoted attributes.
 
 Test issues and gaps (pending):
-- No tests for raw dumps with embedded tabs/newlines (unsupported by line-based parsing).
+- Raw dumps with embedded tabs/newlines are expected to error (covered by unit tests).
 - No tests for unescaping backslash sequences in column values (not implemented).
 - No tests for file size heuristics (not implemented).
 - No tests for focus list encoding error policy (currently errors="replace").
 - No tests for focus list streaming or large-file performance.
 - (Filled) Missing-page warnings are now covered by pages_text_missing/pages_content_missing CLI tests.
+- Postponed: performance/scale testing (large fixtures, streaming benchmarks).
+- Postponed: shared sanitization refactor between text/content (design alignment needed).
+- Postponed: additional filename edge-case tests beyond the current set.
