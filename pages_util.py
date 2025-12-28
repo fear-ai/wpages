@@ -47,6 +47,8 @@ class SanitizeCounts:
     blocks_conv: int = 0
     blocked_scheme_links: int = 0
     blocked_scheme_images: int = 0
+    missing_scheme_links: int = 0
+    missing_scheme_images: int = 0
     other_scheme_links: int = 0
     other_scheme_images: int = 0
 

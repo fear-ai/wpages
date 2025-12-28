@@ -38,7 +38,9 @@ and stronger character handling while keeping the implementation lightweight.
 
 ### Links
 - `<a href="URL">text</a>` becomes `text (URL)`.
-- If the anchor text is empty after tag stripping, the URL alone is used.
+- If the anchor text is empty after tag stripping and the anchor contains an
+  `<img>`, the image `alt` text is used (or `image` when `alt` is empty).
+- Otherwise, the URL alone is used.
 - URLs remain visible even if the surrounding tag content is stripped.
 
 ### Headings
@@ -107,7 +109,7 @@ and stronger character handling while keeping the implementation lightweight.
 - Values are HTML-unescaped after extraction; entities in `href/src` are decoded.
 - Blocked schemes (`about`, `blob`, `chrome`, `chrome-extension`, `data`, `file`,
   `filesystem`, `javascript`, `moz-extension`, `vbscript`) are dropped and
-  rendered as bracketed labels to require manual review.
+  rendered as brace-wrapped labels to require manual review.
 - Scripts/styles/comments are stripped before link/image extraction; no extra
   URL normalization is applied beyond trimming and scheme checks.
 
@@ -115,7 +117,7 @@ and stronger character handling while keeping the implementation lightweight.
 1) MySQL escapes are decoded and scripts/styles/comments are removed before
    link/image extraction.
 2) `href/src/title/alt` are extracted, HTML-unescaped, and trimmed.
-3) Bad schemes are dropped and replaced with bracketed labels.
+3) Bad schemes are dropped and replaced with brace-wrapped labels.
 4) Remaining tags are stripped, then character filtering runs.
 
 Implications:

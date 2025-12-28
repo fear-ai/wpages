@@ -108,9 +108,17 @@ def _format_scheme_relative(
     label: str,
     url: str,
     title: str,
+    counts: SanitizeCounts | None,
+    *,
+    is_image: bool,
 ) -> str | None:
     if not url.startswith("//"):
         return None
+    if counts is not None:
+        if is_image:
+            counts.missing_scheme_images += 1
+        else:
+            counts.missing_scheme_links += 1
     return _format_missing_scheme(label, url, title)
 
 
@@ -170,11 +178,27 @@ def _extract_image_parts(tag: str) -> tuple[str, str, str]:
     return src, alt, title
 
 
+def _anchor_image_label(inner: str) -> str:
+    match = IMG_RE.search(inner)
+    if not match:
+        return ""
+    _, alt, _ = _extract_image_parts(match.group(0))
+    return alt or "image"
+
+
 def _convert_anchor(match: re.Match[str], counts: SanitizeCounts | None = None) -> str:
     attrs = match.group(1) or ""
     inner = match.group(2) or ""
     url, inner_text, title = _extract_anchor_parts(attrs, inner)
-    scheme_relative = _format_scheme_relative(inner_text, url, title)
+    if not inner_text and inner:
+        inner_text = _anchor_image_label(inner) or inner_text
+    scheme_relative = _format_scheme_relative(
+        inner_text,
+        url,
+        title,
+        counts,
+        is_image=False,
+    )
     if scheme_relative is not None:
         return scheme_relative
     scheme = _get_scheme(url)
@@ -182,7 +206,7 @@ def _convert_anchor(match: re.Match[str], counts: SanitizeCounts | None = None) 
         label = inner_text or "link"
         if counts is not None:
             counts.blocked_scheme_links += 1
-        return f" [{label}] "
+        return f"{{{label}}}"
     if scheme and scheme not in HTTP_SCHEMES:
         if counts is not None:
             counts.other_scheme_links += 1
@@ -201,7 +225,13 @@ def _convert_anchor_md(match: re.Match[str], counts: SanitizeCounts | None = Non
     attrs = match.group(1) or ""
     inner = match.group(2) or ""
     url, inner_text, title = _extract_anchor_parts(attrs, inner)
-    scheme_relative = _format_scheme_relative(inner_text, url, title)
+    scheme_relative = _format_scheme_relative(
+        inner_text,
+        url,
+        title,
+        counts,
+        is_image=False,
+    )
     if scheme_relative is not None:
         return scheme_relative
     scheme = _get_scheme(url)
@@ -209,7 +239,7 @@ def _convert_anchor_md(match: re.Match[str], counts: SanitizeCounts | None = Non
         label = inner_text or "link"
         if counts is not None:
             counts.blocked_scheme_links += 1
-        return f" [{label}] "
+        return f"{{{label}}}"
     if scheme and scheme not in HTTP_SCHEMES:
         if counts is not None:
             counts.other_scheme_links += 1
@@ -225,7 +255,13 @@ def _convert_anchor_md(match: re.Match[str], counts: SanitizeCounts | None = Non
 def _convert_image_md(match: re.Match[str], counts: SanitizeCounts | None = None) -> str:
     tag = match.group(0)
     src, alt, title = _extract_image_parts(tag)
-    scheme_relative = _format_scheme_relative(alt, src, title)
+    scheme_relative = _format_scheme_relative(
+        alt,
+        src,
+        title,
+        counts,
+        is_image=True,
+    )
     if scheme_relative is not None:
         return scheme_relative
     scheme = _get_scheme(src)
@@ -233,7 +269,7 @@ def _convert_image_md(match: re.Match[str], counts: SanitizeCounts | None = None
         label = alt or "image"
         if counts is not None:
             counts.blocked_scheme_images += 1
-        return f" [{label}] "
+        return f"{{{label}}}"
     if scheme and scheme not in HTTP_SCHEMES:
         if counts is not None:
             counts.other_scheme_images += 1
@@ -810,6 +846,14 @@ def main() -> int:
             warn(
                 f"Non-HTTP scheme images: {counts.other_scheme_images} in page '{match.entry.name}'"
             )
+        if counts.missing_scheme_links:
+            warn(
+                f"Missing scheme links: {counts.missing_scheme_links} in page '{match.entry.name}'"
+            )
+        if counts.missing_scheme_images:
+            warn(
+                f"Missing scheme images: {counts.missing_scheme_images} in page '{match.entry.name}'"
+            )
         if not args.footer:
             cleaned = strip_footer(cleaned)
         out_path = output_dir / safe_filename(match.entry.name, output_ext)
@@ -840,6 +884,12 @@ def main() -> int:
         )
         info_page_count(
             "Blocked scheme images", counts.blocked_scheme_images, match.entry.name
+        )
+        info_page_count(
+            "Missing scheme links", counts.missing_scheme_links, match.entry.name
+        )
+        info_page_count(
+            "Missing scheme images", counts.missing_scheme_images, match.entry.name
         )
         info_page_count(
             "Control chars removed", filter_counts.re_control, match.entry.name

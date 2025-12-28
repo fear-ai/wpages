@@ -24,7 +24,7 @@ Implementation
 - pages_list.py: CLI list output and matching behavior documented in WPages.md and PList.md.
 - pages_util.py: shared helpers for output paths and text cleanup (decode_mysql_escapes, strip_footer, and safe_filename with Windows-safe ASCII rules, 255-byte cap, and `_N` suffixing).
 - pages_text.py: legacy cleaner; strips tags/entities, filters control/zero-width/non-ASCII with default space replacement (overridable via --replace, plus --raw/--utf/--nonl/--notab), writes ASCII by default (UTF-8 for --utf/--raw), and supports `--notags` dump notags after tag stripping; behavior documented in PText.md.
-- pages_content.py: text/Markdown extraction, scheme blocking, ordered lists, structural warnings, and optional `--notags` dump notags after tag stripping; character filtering replaces control/zero-width/non-ASCII with space by default or `--replace` (suppressed per run); behavior documented in PContent.md.
+- pages_content.py: text/Markdown extraction, scheme blocking, ordered lists, structural warnings, and optional `--notags` dump notags after tag stripping; image-only anchors use alt text (or `image`) for text output; character filtering replaces control/zero-width/non-ASCII with space by default or `--replace` (suppressed per run); behavior documented in PContent.md.
 - tests: runner groups are documented in tests/TESTS.md.
 
 Module partitioning
@@ -60,10 +60,13 @@ Pending
 - File size heuristics and streaming approach (see Decisions 4-5).
 - Focus list encoding error policy (see Decision 6).
 - URL normalization policy beyond scheme blocking (see HStrip.md).
- - Removal/replacement reporting policy (counts vs warnings) for sanitization steps (see HStrip.md).
+- Removal/replacement reporting policy (counts vs warnings) for sanitization steps (see HStrip.md).
 - Revisit filename edge-case test coverage (trailing dots/spaces, long extensions, empty-base suffixing).
 - Revisit UTF-8 + Markdown output tests (CLI and unit coverage).
 - Revisit sharing HTML/entity stripping between pages_text.py and pages_content.py.
+- Postponed: performance/scale testing (large fixtures, streaming benchmarks).
+- Postponed: shared sanitization refactor between text/content (design alignment needed).
+- Postponed: additional filename edge-case tests beyond the current set.
 
 TODO
 - Add progress reporting for long runs (every N lines and matches).
