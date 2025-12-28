@@ -28,11 +28,25 @@ class TestPagesContent(unittest.TestCase):
             "[Link]\n",
         )
 
+    def test_clean_content_link_missing_scheme(self) -> None:
+        text = '<a href="//example.com/path">Link</a>'
+        self.assertEqual(
+            clean_content(text, table_delim=",", replace_char=""),
+            "Link ({scheme?}://example.com/path)\n",
+        )
+
     def test_clean_content_anchor_nested(self) -> None:
         text = '<a href="https://example.com"><span>Go</span></a>'
         self.assertEqual(
             clean_content(text, table_delim=",", replace_char=""),
             "Go (https://example.com)\n",
+        )
+
+    def test_clean_content_anchor_adjacent(self) -> None:
+        text = '<a href="https://x">One</a><a href="https://y">Two</a>'
+        self.assertEqual(
+            clean_content(text, table_delim=",", replace_char=""),
+            "One (https://x) Two (https://y)\n",
         )
 
     def test_clean_content_entities(self) -> None:
@@ -166,6 +180,20 @@ class TestPagesContent(unittest.TestCase):
             "- One\n- Two\n",
         )
 
+    def test_clean_content_heading_whitespace(self) -> None:
+        text = "<h4>\n  Title  \n</h4>"
+        self.assertEqual(
+            clean_content(text, table_delim=",", replace_char=""),
+            "#### Title\n",
+        )
+
+    def test_clean_content_heading_empty(self) -> None:
+        text = "<h4>\n</h4>"
+        self.assertEqual(
+            clean_content(text, table_delim=",", replace_char=""),
+            "",
+        )
+
     def test_clean_md_headings_emphasis_code(self) -> None:
         text = "<h2>Title</h2><p><strong>Bold</strong> <em>Ital</em> <code>x=1</code></p><pre><code>line  1</code></pre>"
         self.assertEqual(
@@ -270,6 +298,20 @@ class TestPagesContent(unittest.TestCase):
             "- One\n- Two\n",
         )
 
+    def test_clean_md_heading_whitespace(self) -> None:
+        text = "<h4>\n  Title  \n</h4>"
+        self.assertEqual(
+            clean_md(text, replace_char=""),
+            "#### Title\n",
+        )
+
+    def test_clean_md_heading_empty(self) -> None:
+        text = "<h4>\n</h4>"
+        self.assertEqual(
+            clean_md(text, replace_char=""),
+            "",
+        )
+
     def test_clean_md_ordered_list(self) -> None:
         text = "<ol><li>One</li><li>Two</li></ol>"
         self.assertEqual(
@@ -296,6 +338,20 @@ class TestPagesContent(unittest.TestCase):
         self.assertEqual(
             clean_md(text, replace_char=""),
             "[Link]\n",
+        )
+
+    def test_clean_md_anchor_adjacent(self) -> None:
+        text = '<a href="https://x">One</a><a href="https://y">Two</a>'
+        self.assertEqual(
+            clean_md(text, replace_char=""),
+            "[One](https://x) [Two](https://y)\n",
+        )
+
+    def test_clean_md_link_missing_scheme(self) -> None:
+        text = '<a href="//example.com/path">Link</a>'
+        self.assertEqual(
+            clean_md(text, replace_char=""),
+            "Link ({scheme?}://example.com/path)\n",
         )
 
     def test_clean_md_image_title(self) -> None:

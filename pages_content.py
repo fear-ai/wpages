@@ -87,6 +87,33 @@ def _get_scheme(url: str) -> str:
     return match.group(1).lower()
 
 
+def _mark_scheme_relative(url: str) -> str:
+    if url.startswith("//"):
+        return f"{{scheme?}}:{url}"
+    return url
+
+
+def _format_missing_scheme(label: str, url: str, title: str) -> str:
+    marked = _mark_scheme_relative(url)
+    if label:
+        if title:
+            return f'{label} ({marked} "{title}")'
+        return f"{label} ({marked})"
+    if title:
+        return f'{marked} "{title}"'
+    return marked
+
+
+def _format_scheme_relative(
+    label: str,
+    url: str,
+    title: str,
+) -> str | None:
+    if not url.startswith("//"):
+        return None
+    return _format_missing_scheme(label, url, title)
+
+
 def _count_tags(text: str, tag: str) -> tuple[int, int]:
     open_count = len(re.findall(rf"(?i)<{tag}\b[^>]*>", text))
     close_count = len(re.findall(rf"(?i)</{tag}\s*>", text))
@@ -116,15 +143,41 @@ def _strip_inline_tags(text: str) -> str:
     return re.sub(r"(?s)<[^>]+>", " ", text)
 
 
+def _strip_blocks_comments(text: str, counts: SanitizeCounts | None) -> str:
+    text, blocks_rm = re.subn(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", text)
+    if counts is not None:
+        counts.blocks_rm += blocks_rm
+    text, comments_rm = re.subn(r"(?s)<!--.*?-->", " ", text)
+    if counts is not None:
+        counts.comments_rm += comments_rm
+    return text
+
+
+def _extract_anchor_parts(attrs: str, inner: str) -> tuple[str, str, str]:
+    url = html.unescape(_extract_attr(attrs, "href")).strip()
+    url = _suppress_url_chars(url)
+    inner_text = _strip_inline_tags(inner)
+    inner_text = html.unescape(inner_text).strip()
+    title = html.unescape(_extract_attr(attrs, "title")).strip()
+    return url, inner_text, title
+
+
+def _extract_image_parts(tag: str) -> tuple[str, str, str]:
+    src = html.unescape(_extract_attr(tag, "src")).strip()
+    src = _suppress_url_chars(src)
+    alt = html.unescape(_extract_attr(tag, "alt")).strip()
+    title = html.unescape(_extract_attr(tag, "title")).strip()
+    return src, alt, title
+
+
 def _convert_anchor(match: re.Match[str], counts: SanitizeCounts | None = None) -> str:
     attrs = match.group(1) or ""
     inner = match.group(2) or ""
-    url = html.unescape(_extract_attr(attrs, "href")).strip()
-    url = _suppress_url_chars(url)
+    url, inner_text, title = _extract_anchor_parts(attrs, inner)
+    scheme_relative = _format_scheme_relative(inner_text, url, title)
+    if scheme_relative is not None:
+        return scheme_relative
     scheme = _get_scheme(url)
-    title = html.unescape(_extract_attr(attrs, "title")).strip()
-    inner_text = _strip_inline_tags(inner)
-    inner_text = html.unescape(inner_text).strip()
     if url and scheme in BLOCKED_SCHEMES:
         label = inner_text or "link"
         if counts is not None:
@@ -147,12 +200,11 @@ def _convert_anchor(match: re.Match[str], counts: SanitizeCounts | None = None) 
 def _convert_anchor_md(match: re.Match[str], counts: SanitizeCounts | None = None) -> str:
     attrs = match.group(1) or ""
     inner = match.group(2) or ""
-    url = html.unescape(_extract_attr(attrs, "href")).strip()
-    url = _suppress_url_chars(url)
+    url, inner_text, title = _extract_anchor_parts(attrs, inner)
+    scheme_relative = _format_scheme_relative(inner_text, url, title)
+    if scheme_relative is not None:
+        return scheme_relative
     scheme = _get_scheme(url)
-    title = html.unescape(_extract_attr(attrs, "title")).strip()
-    inner_text = _strip_inline_tags(inner)
-    inner_text = html.unescape(inner_text).strip()
     if url and scheme in BLOCKED_SCHEMES:
         label = inner_text or "link"
         if counts is not None:
@@ -172,11 +224,11 @@ def _convert_anchor_md(match: re.Match[str], counts: SanitizeCounts | None = Non
 
 def _convert_image_md(match: re.Match[str], counts: SanitizeCounts | None = None) -> str:
     tag = match.group(0)
-    src = html.unescape(_extract_attr(tag, "src")).strip()
-    src = _suppress_url_chars(src)
+    src, alt, title = _extract_image_parts(tag)
+    scheme_relative = _format_scheme_relative(alt, src, title)
+    if scheme_relative is not None:
+        return scheme_relative
     scheme = _get_scheme(src)
-    alt = html.unescape(_extract_attr(tag, "alt")).strip()
-    title = html.unescape(_extract_attr(tag, "title")).strip()
     if src and scheme in BLOCKED_SCHEMES:
         label = alt or "image"
         if counts is not None:
@@ -225,7 +277,7 @@ def _number_ordered_lists(
 
 def _normalize_lines(text: str, table_delim: str) -> str:
     lines = text.split("\n")
-    lines = _merge_dangling_list_markers(lines)
+    lines = _merge_dangling_markers(lines)
     lines = _drop_list_blank_lines(lines)
     out_lines: list[str] = []
     blank = False
@@ -233,9 +285,13 @@ def _normalize_lines(text: str, table_delim: str) -> str:
         if table_delim == "\t":
             parts = line.split("\t")
             parts = [re.sub(r"[ \t]+", " ", part).strip() for part in parts]
+            parts = [
+                _separate_adjacent_inline(part, markdown=False) for part in parts
+            ]
             line = "\t".join(parts)
         else:
             line = re.sub(r"[ \t]+", " ", line).strip()
+            line = _separate_adjacent_inline(line, markdown=False)
         if table_delim and line.startswith(table_delim):
             line = line[len(table_delim) :]
         if not line:
@@ -253,7 +309,7 @@ def _normalize_lines(text: str, table_delim: str) -> str:
 
 def _normalize_markdown(text: str) -> str:
     lines = text.split("\n")
-    lines = _merge_dangling_list_markers(lines)
+    lines = _merge_dangling_markers(lines)
     lines = _drop_list_blank_lines(lines)
     out_lines: list[str] = []
     blank = False
@@ -268,6 +324,7 @@ def _normalize_markdown(text: str) -> str:
             out_lines.append(line.rstrip())
             continue
         line = re.sub(r"[ \t]+", " ", line).strip()
+        line = _separate_adjacent_inline(line, markdown=True)
         if not line:
             if not blank:
                 out_lines.append("")
@@ -300,12 +357,7 @@ def clean_content(
     text = decode_mysql_escapes(text)
 
     # Remove scripts, styles, and comments to avoid inline code.
-    text, blocks_rm = re.subn(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", text)
-    if counts is not None:
-        counts.blocks_rm += blocks_rm
-    text, comments_rm = re.subn(r"(?s)<!--.*?-->", " ", text)
-    if counts is not None:
-        counts.comments_rm += comments_rm
+    text = _strip_blocks_comments(text, counts)
 
     # Preserve link destinations before stripping tags.
     text, anchors_conv = ANCHOR_RE.subn(lambda m: _convert_anchor(m, counts), text)
@@ -399,12 +451,7 @@ def clean_md(
     text = decode_mysql_escapes(text)
 
     # Remove scripts, styles, and comments to avoid inline code.
-    text, blocks_rm = re.subn(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", text)
-    if counts is not None:
-        counts.blocks_rm += blocks_rm
-    text, comments_rm = re.subn(r"(?s)<!--.*?-->", " ", text)
-    if counts is not None:
-        counts.comments_rm += comments_rm
+    text = _strip_blocks_comments(text, counts)
 
     # Code blocks first.
     text, blocks_conv = re.subn(r"(?is)<pre\b[^>]*>\s*<code\b[^>]*>", "\n```\n", text)
@@ -524,25 +571,52 @@ def _table_delimiter(name: str) -> str:
     return ","
 
 
-def _merge_dangling_list_markers(lines: list[str]) -> list[str]:
+def _is_marker_line(text: str) -> bool:
+    stripped = text.strip()
+    if stripped == "-":
+        return True
+    if re.fullmatch(r"\d+\.", stripped):
+        return True
+    if re.fullmatch(r"#{1,6}", stripped):
+        return True
+    return False
+
+
+def _merge_dangling_markers(lines: list[str]) -> list[str]:
     merged: list[str] = []
     idx = 0
     while idx < len(lines):
         line = lines[idx]
         stripped = line.strip()
-        if stripped == "-" or re.fullmatch(r"\d+\.", stripped):
+        if _is_marker_line(stripped):
             jdx = idx + 1
             while jdx < len(lines) and not lines[jdx].strip():
                 jdx += 1
             if jdx < len(lines):
                 next_line = lines[jdx].strip()
-                if next_line:
+                if next_line and not _is_marker_line(next_line):
                     merged.append(f"{stripped} {next_line}")
                     idx = jdx + 1
                     continue
+                if next_line and _is_marker_line(next_line):
+                    idx = jdx
+                    continue
+            else:
+                idx += 1
+                continue
         merged.append(line)
         idx += 1
     return merged
+
+
+def _separate_adjacent_inline(line: str, *, markdown: bool) -> str:
+    if markdown:
+        line = re.sub(r"\)\s*(?=[!\[])", ") ", line)
+        line = re.sub(r"\)\s*(?=[A-Za-z0-9])", ") ", line)
+        line = re.sub(r"\)\s*(?=\{)", ") ", line)
+    else:
+        line = re.sub(r"\)\s*(?=[A-Za-z0-9\[{])", ") ", line)
+    return line
 
 
 def _drop_list_blank_lines(lines: list[str]) -> list[str]:

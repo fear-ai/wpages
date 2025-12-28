@@ -127,6 +127,8 @@ Implications:
 - Embedded newlines/tabs inside quoted attributes can survive extraction and
   become actual line breaks or tabs in output (filtering preserves `\n`/`\t`).
 - Unquoted attributes stop at whitespace, so spaces/newlines truncate URLs.
+- Scheme-relative URLs (`//example.com/...`) are kept but prefixed with
+  `{scheme?}:` to indicate a missing scheme (rendered as plain text).
 
 ## Character Filtering
 - Control characters are removed or replaced (except newline and tab).
@@ -146,6 +148,11 @@ Implications:
 - When table delimiter is `tab`, tabs are preserved between cells.
 - Markdown output preserves whitespace inside fenced code blocks and only trims
   trailing spaces; other lines are normalized.
+- Dangling list or heading markers (`-`, `1.`, `####`) are merged with the next
+  non-blank line and the following text is trimmed; markers with no content are
+  dropped.
+- Adjacent inline constructs (links/images and trailing parentheses) are
+  separated with a single space to avoid run-together output.
 
 ## CLI Options (Ordered Groups)
 - Standard options: --input, --output-dir, --lines, --bytes, --csv,
