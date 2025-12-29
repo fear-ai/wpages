@@ -157,7 +157,7 @@ Implications:
   separated with a single space to avoid run-together output.
 
 ## CLI Options (Ordered Groups)
-- Standard options: --input, --output-dir, --lines, --bytes, --csv,
+- Standard options: --input, --output-dir, --lines, --bytes, --csvin,
   --permit/--permit-header/--permit-columns.
 - Pages options: --pages, --prefix/--noprefix, --case/--nocase.
 - Filter options: --replace, --raw, --utf, --notab, --nonl.

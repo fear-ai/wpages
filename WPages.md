@@ -17,7 +17,7 @@ Pain points:
 
 Requirements:
 - Expect mysql -e tab output; prefer escaping to avoid literal tabs/newlines.
-- Use --csv when dumps include backslash-escaped tabs/newlines; avoid --raw output.
+- Use --csvin when dumps include backslash-escaped tabs/newlines; avoid --raw output.
 - pages.list accepts comma- or newline-separated names; whitespace is trimmed per entry. The CLI does not accept inline page lists; use --pages PATH.
 - Normalization: parsing normalizes header casing and line endings (CR/LF), but does not normalize column values or unescape backslash sequences. Matching normalizes focus names and titles consistently (case-sensitive or lowercased) for dedupe, indexing, prefix checks, and details labeling.
 - Line endings: parsing treats LF as the line break (newline="\\n"), trims trailing CR/LF, and strips leading CR on lines to tolerate LFCR. CR-only files are not supported; use LF or CRLF.
@@ -25,12 +25,12 @@ Requirements:
 - Use --rows DIR to dump rows (raw row values) to numbered .txt files for debugging.
 
 CLI options (ordered groups):
-- Standard options (all tools): --input, --output-dir (writers only), --lines, --bytes, --csv, --permit/--permit-header/--permit-columns.
+- Standard options (all tools): --input, --output-dir (writers only), --lines, --bytes, --csvin, --permit/--permit-header/--permit-columns.
 - Pages options (all tools): --pages, --prefix/--noprefix, --case/--nocase.
 - Filter options (text/content only): --replace, --raw, --utf, --notab, --nonl.
 - Dump options: --rows DIR (dump rows). --notags is supported only by pages_text.py/pages_content.py because only those tools strip HTML.
 - Tool-specific options:
-  - pages_list.py: --only, --details. Output is written to stdout; if --output-dir is provided, pages_list.csv is also written there.
+  - pages_list.py: --only, --details. Output is written to stdout unless --output-dir is provided; when set, pages.csv is written there and stdout is suppressed.
   - pages_text.py: --footer.
   - pages_content.py: --footer, --format, --table-delim.
 

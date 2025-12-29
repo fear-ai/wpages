@@ -89,7 +89,7 @@ def main() -> int:
         input_path,
         max_lines=args.lines,
         max_bytes=args.max_bytes,
-        use_csv=args.csv,
+        use_csv=args.csvin,
         include_content=False,
         strict_header=strict_header,
         strict_columns=strict_columns,
@@ -116,7 +116,7 @@ def main() -> int:
         except OSError as exc:
             error(str(exc))
             return 1
-        output_path = output_dir / "pages_list.csv"
+        output_path = output_dir / "pages.csv"
 
     output = []
     rows = result.rows
@@ -148,12 +148,12 @@ def main() -> int:
         for row in output:
             writer.writerow(
                 [
-                    row["focus"],
                     row["title"],
                     row["id"],
                     row["status"],
                     row["date"],
                     row["match"],
+                    row["focus"],
                 ]
             )
     else:
@@ -161,7 +161,8 @@ def main() -> int:
             writer.writerow([row["title"], row["id"], row["status"], row["date"]])
 
     output_text = buffer.getvalue()
-    sys.stdout.write(output_text)
+    if output_dir_value is None:
+        sys.stdout.write(output_text)
     if output_path is not None:
         try:
             write_text_check(output_path, output_text, encoding="utf-8", label="output")

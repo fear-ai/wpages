@@ -145,7 +145,7 @@ def main() -> int:
         input_path,
         max_lines=args.lines,
         max_bytes=args.max_bytes,
-        use_csv=args.csv,
+        use_csv=args.csvin,
         include_content=True,
         strict_header=strict_header,
         strict_columns=strict_columns,

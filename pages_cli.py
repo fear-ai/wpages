@@ -85,7 +85,8 @@ def add_standard_args(parser: argparse.ArgumentParser) -> None:
         help="Max bytes per data line (0 for unlimited).",
     )
     parser.add_argument(
-        "--csv",
+        "--csvin",
+        dest="csvin",
         action="store_true",
         help="Parse the dump with csv.reader (tab delimiter, backslash escapes).",
     )

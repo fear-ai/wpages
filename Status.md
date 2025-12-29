@@ -18,7 +18,7 @@ Progress
 - Tests split into list/text/content/unit groups, with new content-focused coverage in tests/test_pages_content.py.
 
 Implementation
-- pages_db.py: parse_dump returns rows + stats with limits, csv mode, and newline="\\n" to avoid CR splitting; trims trailing CR/LF and strips leading CR to tolerate LFCR; warnings emitted via pages_cli.py.
+- pages_db.py: parse_dump returns rows + stats with limits, csv-in mode, and newline="\\n" to avoid CR splitting; trims trailing CR/LF and strips leading CR to tolerate LFCR; warnings emitted via pages_cli.py.
 - pages_cli.py: shared CLI options include `--rows` to dump raw row values for debugging.
 - pages_focus.py: focus list parsing and match_entries encapsulate matching behavior; warnings on duplicate focus names.
 - pages_list.py: CLI list output and matching behavior documented in WPages.md and PList.md.
@@ -50,7 +50,7 @@ Decisions
 6) Focus list encoding error policy postponed.
 
 Concerns
-1) Input brittleness: raw dumps with literal tabs/newlines will misparse unless using mysql -e or --csv (see Decisions 1 and 2).
+1) Input brittleness: raw dumps with literal tabs/newlines will misparse unless using mysql -e or --csvin (see Decisions 1 and 2).
 2) Warning visibility: parse_dump returns stats only; non-CLI callers must surface warnings explicitly (see Decision 3).
 3) Memory scale: rows and content live in memory; large dumps need limits or profiling (see Decisions 4 and 5).
 4) Character removal/replacement is now summarized as Info counts per page (control/zero-width/tab/newline/non-ASCII removals and replacement chars). Sanitization steps (tags/blocks/entities) also emit Info counts. Data loss is still possible when ASCII-only output is used.
