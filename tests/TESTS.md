@@ -11,6 +11,13 @@ Applicability:
 - pages_util.py unit tests validate shared helper behavior (decode_mysql_escapes, safe_filename, strip_footer), including filename edge cases (trailing dots/spaces, long extensions, empty-base collisions).
 - pages_content.py unit tests validate clean_content and clean_md behavior.
 
+Testing approach and coverage alignment:
+- Unit tests target pure or near-pure functions (parsing helpers, sanitization, conversion) to lock behavior and edge cases.
+- CLI tests validate end-to-end wiring (I/O, warnings, output files) and prevent regressions in user-facing behavior.
+- High-risk areas (parsing integrity, sanitization/data loss, scheme handling) get both unit and CLI coverage; lower-risk formatting details stay in unit tests only to reduce redundancy.
+- Avoid duplicating identical assertions across layers unless a CLI message or side effect is the feature.
+- Prefer minimal fixtures that target a single behavior; expand only when necessary to cover combined cases (counts, warnings).
+
 Runner and conventions:
 - Run all tests: ./tests/run_tests.sh [--results PATH]
 - Run a group: ./tests/run_tests.sh --group all|cli|list|text|content|unit

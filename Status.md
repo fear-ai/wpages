@@ -68,6 +68,27 @@ Pending
 - Postponed: shared sanitization refactor between text/content (design alignment needed).
 - Postponed: additional filename edge-case tests beyond the current set.
 
+Considerations (general code/feature scope)
+- Current scope is appropriate: parsing, focus selection, text/Markdown extraction, sanitization, and per-page counts.
+- Feature breadth is intentional; complexity comes from supporting both text and Markdown plus safety reporting.
+
+Considerations (implementation detail)
+- pages_content.py remains large because it owns both format conversions and count/warning emission.
+- Some logic is duplicated across pages_text.py and pages_content.py (block stripping, entity handling, character filtering).
+- Inline parsing helpers (anchors/images, scheme checks) are tightly coupled to content rendering instead of reusable utilities.
+- Normalization logic (whitespace, marker merging, adjacent inline separation) is only in content extraction.
+
+Partitioning and sharing opportunities
+- Extract shared sanitize pipeline (block/comment/tag strip, entity unescape, character filtering) to a common module.
+- Centralize inline parsing helpers (anchor/image parsing, scheme blocking/marking) to reduce duplication.
+- Keep format-specific rendering in pages_content.py, but reuse shared helpers for counts and preprocessing.
+
+Next several steps (when revisited)
+1) Decide on a shared sanitization module scope (minimal: block/comment/tag/entity + filter_characters integration).
+2) Move reusable anchor/image parsing + scheme handling into a shared helper, keep format-specific formatting in pages_content.py.
+3) Refactor pages_text.py to call the shared sanitize pipeline and focus on output formatting only.
+4) Add regression tests to lock behavior before/after refactor (reuse existing fixtures).
+
 TODO
 - Add progress reporting for long runs (every N lines and matches).
 - Report when --lines truncates input or when oversized lines are skipped outside CLI warnings.

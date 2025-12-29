@@ -65,4 +65,7 @@ Mitigations (usage and data selection):
 - Use `--lines` and `--bytes` to cap work on unknown or large dumps.
 - Clean pages.list to remove duplicates and reduce overlap between focus names.
 
+Testing and validation:
+- Test guidance and fixtures are documented in tests/TESTS.md.
+
 Sanitization policies and considerations are in `HStrip.md`.
