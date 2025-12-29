@@ -40,7 +40,7 @@ class TestPagesCLI(unittest.TestCase):
             (["--nocase"], {"case_sensitive": False}),
             (["--lines", "5"], {"lines": 5}),
             (["--bytes", "10"], {"max_bytes": 10}),
-            (["--csv"], {"csv": True}),
+            (["--csvin"], {"csvin": True}),
             (["--permit"], {"permit": True}),
             (["--permit-header"], {"strict_header": False}),
             (["--permit-columns"], {"strict_columns": False}),

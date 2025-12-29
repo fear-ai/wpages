@@ -142,14 +142,13 @@ run_list() {
     --pages "${TESTS_DIR}/sample.list" \
     --output-dir "$pages_list_output_dir"
   check_status list_output_dir 0
-  check_stdout list_output_dir "${TESTS_DIR}/default_expected.csv"
-  check_file list_output_dir "${pages_list_output_dir}/pages_list.csv" "${TESTS_DIR}/default_expected.csv"
+  check_file list_output_dir "${pages_list_output_dir}/pages.csv" "${TESTS_DIR}/default_expected.csv"
 
   run exact "$PYTHON_BIN" "${ROOT}/pages_list.py"     --input "${TESTS_DIR}/sample.out"     --pages "${TESTS_DIR}/sample.list"     --only
   check_status exact 0
   check_stdout exact "${TESTS_DIR}/sample_only_expected.csv"
 
-  run csv_mode "$PYTHON_BIN" "${ROOT}/pages_list.py"     --input "${TESTS_DIR}/sample.out"     --pages "${TESTS_DIR}/sample.list"     --only --csv
+  run csv_mode "$PYTHON_BIN" "${ROOT}/pages_list.py"     --input "${TESTS_DIR}/sample.out"     --pages "${TESTS_DIR}/sample.list"     --only --csvin
   check_status csv_mode 0
   check_stdout csv_mode "${TESTS_DIR}/sample_only_expected.csv"
 

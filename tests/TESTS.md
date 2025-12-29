@@ -95,10 +95,10 @@ Expected outputs:
 Unit tests (by module):
 
 pages_db.py unit tests:
-- tests/test_pages_db.py covers empty file, bad header, malformed rows (strict vs non-strict), limits, use_csv on a normal fixture, embedded newlines in raw dumps, and CR-only newlines.
+- tests/test_pages_db.py covers empty file, bad header, malformed rows (strict vs non-strict), limits, csv-in parsing on a normal fixture, embedded newlines in raw dumps, and CR-only newlines.
 - parse_dump covers CRLF and LF newline handling and strict_header=False coverage with header_mismatch stats.
 - Coverage includes FileNotFoundError, invalid id/status/date counts, duplicate id count, index helpers, and pick_best.
-- parse_dump includes a use_csv test with an escaped delimiter (backslash + tab) and confirms the default split misparses that case.
+- parse_dump includes a csv-in test with an escaped delimiter (backslash + tab) and confirms the default split misparses that case.
 
 pages_focus.py unit tests:
 - tests/test_pages_focus.py covers load_focus_list dedupe behavior, build_rows_keys normalization, match_entries selection, match_focus_entry selection, and match_label precedence.
@@ -114,9 +114,9 @@ CLI integration tests:
 pages_list.py CLI tests (basic and matching):
 Base: python3 pages_list.py --input tests/sample.out --pages tests/sample.list
 - Defaults: Base -> stdout tests/default_expected.csv.
-- Optional output file: Base --output-dir DIR writes pages_list.csv to DIR (stdout still receives CSV, content is checked).
+- Optional output file: Base --output-dir DIR writes pages.csv to DIR (stdout is suppressed).
 - Exact match: Base --only -> stdout tests/sample_only_expected.csv.
-- CSV mode: Base --only --csv -> stdout tests/sample_only_expected.csv.
+- CSV-in mode: Base --only --csvin -> stdout tests/sample_only_expected.csv.
 - Prefix enabled: Base with --pages tests/prefix_only.list --only --prefix -> stdout tests/prefix_only_expected.csv.
 - Prefix disabled (details): Base with --pages tests/prefix_only.list --details --noprefix -> stdout tests/prefix_noprefix_expected.csv.
 - Case-sensitive default: Base with --pages tests/case.list --only -> stdout tests/case_sensitive_expected.csv.
@@ -161,6 +161,7 @@ pages_list.py behavior notes:
 - Input rows are indexed by normalized title in a dict of lists (title_index); duplicates are resolved with pick_best when selecting a focus match.
 - Ordered matching uses a list of normalized keys (focus_keys); match_label returns the first exact or prefix match by focus list order.
 - Not --only output tracks used IDs with a set (used_ids) so matched rows are not emitted twice.
+- With --details, CSV column order is title,id,status,date,match,focus.
 
 pages_text.py CLI tests:
 Base (sample): python3 pages_text.py --input tests/sample.out --pages tests/sample.list --output-dir DIR
