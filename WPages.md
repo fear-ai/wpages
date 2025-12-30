@@ -30,9 +30,9 @@ CLI options (ordered groups):
 - Filter options (text/content only): --replace, --raw, --utf, --notab, --nonl.
 - Dump options: --rows DIR (dump rows). --notags is supported only by pages_text.py/pages_content.py because only those tools strip HTML.
 - Tool-specific options:
-  - pages_list.py: --only, --details. Output is written to stdout unless --output-dir is provided; when set, pages.csv is written there and stdout is suppressed.
-  - pages_text.py: --footer.
-  - pages_content.py: --footer, --format, --table-delim.
+  - pages_list.py: --only, --details. Output is written to stdout unless --output-dir is provided; when set, pages.csv and pages.list are written there and stdout is suppressed. The CSV includes a content_bytes column (UTF-8 byte length of post_content).
+  - pages_text.py: --footer (writes .text files).
+  - pages_content.py: --footer, --format, --table-delim (writes .txt, .md, or both).
 
 Terminology:
 - Column: database structure element (SQL/MySQL); column name is the header label (e.g., post_title).

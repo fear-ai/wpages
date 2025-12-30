@@ -143,6 +143,7 @@ run_list() {
     --output-dir "$pages_list_output_dir"
   check_status list_output_dir 0
   check_file list_output_dir "${pages_list_output_dir}/pages.csv" "${TESTS_DIR}/default_expected.csv"
+  check_file list_output_dir "${pages_list_output_dir}/pages.list" "${TESTS_DIR}/default_expected.list"
 
   run exact "$PYTHON_BIN" "${ROOT}/pages_list.py"     --input "${TESTS_DIR}/sample.out"     --pages "${TESTS_DIR}/sample.list"     --only
   check_status exact 0
@@ -280,9 +281,9 @@ run_text() {
     --pages "${TESTS_DIR}/sample.list" \
     --output-dir "$pages_text_dir"
   check_status pages_text_basic 0
-  check_file pages_text_basic "${pages_text_dir}/Home.txt" "${TESTS_DIR}/pages_text_home_expected.txt"
-  check_file pages_text_basic "${pages_text_dir}/About.txt" "${TESTS_DIR}/pages_text_about_expected.txt"
-  check_file pages_text_basic "${pages_text_dir}/Contact.txt" "${TESTS_DIR}/pages_text_contact_expected.txt"
+  check_file pages_text_basic "${pages_text_dir}/Home.text" "${TESTS_DIR}/pages_text_home_expected.txt"
+  check_file pages_text_basic "${pages_text_dir}/About.text" "${TESTS_DIR}/pages_text_about_expected.txt"
+  check_file pages_text_basic "${pages_text_dir}/Contact.text" "${TESTS_DIR}/pages_text_contact_expected.txt"
 
   pages_text_notags_dir="${results}/pages_text_notags"
   run pages_text_notags "$PYTHON_BIN" "${ROOT}/pages_text.py" \
@@ -301,9 +302,9 @@ run_text() {
     --pages "${TESTS_DIR}/sample.list" \
     --output-dir "$pages_text_nested"
   check_status pages_text_output_dir_nested 0
-  check_file pages_text_output_dir_nested "${pages_text_nested}/Home.txt" "${TESTS_DIR}/pages_text_home_expected.txt"
-  check_file pages_text_output_dir_nested "${pages_text_nested}/About.txt" "${TESTS_DIR}/pages_text_about_expected.txt"
-  check_file pages_text_output_dir_nested "${pages_text_nested}/Contact.txt" "${TESTS_DIR}/pages_text_contact_expected.txt"
+  check_file pages_text_output_dir_nested "${pages_text_nested}/Home.text" "${TESTS_DIR}/pages_text_home_expected.txt"
+  check_file pages_text_output_dir_nested "${pages_text_nested}/About.text" "${TESTS_DIR}/pages_text_about_expected.txt"
+  check_file pages_text_output_dir_nested "${pages_text_nested}/Contact.text" "${TESTS_DIR}/pages_text_contact_expected.txt"
 
   pages_text_file="${results}/pages_text_output_dir.txt"
   : > "$pages_text_file"
@@ -321,8 +322,8 @@ run_text() {
     --pages "${TESTS_DIR}/missing_page.list" \
     --output-dir "$pages_text_missing_dir"
   check_status pages_text_missing 0
-  check_file pages_text_missing "${pages_text_missing_dir}/Home.txt" "${TESTS_DIR}/pages_text_home_expected.txt"
-  check_file_missing pages_text_missing "${pages_text_missing_dir}/Missing.txt"
+  check_file pages_text_missing "${pages_text_missing_dir}/Home.text" "${TESTS_DIR}/pages_text_home_expected.txt"
+  check_file_missing pages_text_missing "${pages_text_missing_dir}/Missing.text"
   check_stderr_contains pages_text_missing "Warning: Missing page: Missing"
 
   pages_text_utf_dir="${results}/pages_text_utf"
@@ -332,7 +333,7 @@ run_text() {
     --output-dir "$pages_text_utf_dir" \
     --utf
   check_status pages_text_utf 0
-  check_file pages_text_utf "${pages_text_utf_dir}/Dirty.txt" "${TESTS_DIR}/pages_text_dirty_utf_expected.txt"
+  check_file pages_text_utf "${pages_text_utf_dir}/Dirty.text" "${TESTS_DIR}/pages_text_dirty_utf_expected.txt"
 
   pages_text_raw_dir="${results}/pages_text_raw"
   run pages_text_raw "$PYTHON_BIN" "${ROOT}/pages_text.py" \
@@ -341,7 +342,7 @@ run_text() {
     --output-dir "$pages_text_raw_dir" \
     --raw
   check_status pages_text_raw 0
-  check_file pages_text_raw "${pages_text_raw_dir}/Dirty.txt" "${TESTS_DIR}/pages_text_dirty_raw_expected.txt"
+  check_file pages_text_raw "${pages_text_raw_dir}/Dirty.text" "${TESTS_DIR}/pages_text_dirty_raw_expected.txt"
 
   pages_text_notab_nonl_dir="${results}/pages_text_notab_nonl"
   run pages_text_notab_nonl "$PYTHON_BIN" "${ROOT}/pages_text.py" \
@@ -351,7 +352,7 @@ run_text() {
     --notab \
     --nonl
   check_status pages_text_notab_nonl 0
-  check_file pages_text_notab_nonl "${pages_text_notab_nonl_dir}/Escapes.txt" "${TESTS_DIR}/escapes_notab_nonl_expected.txt"
+  check_file pages_text_notab_nonl "${pages_text_notab_nonl_dir}/Escapes.text" "${TESTS_DIR}/escapes_notab_nonl_expected.txt"
 }
 
 run_content() {
@@ -510,6 +511,18 @@ run_content() {
   check_status pages_content_markdown 0
   check_file pages_content_markdown "${pages_content_md_dir}/HTML.md" "${TESTS_DIR}/pages_content_html.md"
   check_file pages_content_markdown "${pages_content_md_dir}/Dirty.md" "${TESTS_DIR}/pages_content_row.md"
+
+  pages_content_both_dir="${results}/pages_content_both"
+  run pages_content_both "$PYTHON_BIN" "${ROOT}/pages_content.py" \
+    --input "${TESTS_DIR}/content.out" \
+    --pages "${TESTS_DIR}/content.list" \
+    --output-dir "$pages_content_both_dir" \
+    --format both
+  check_status pages_content_both 0
+  check_file pages_content_both "${pages_content_both_dir}/HTML.txt" "${TESTS_DIR}/pages_content_html_expected.txt"
+  check_file pages_content_both "${pages_content_both_dir}/Dirty.txt" "${TESTS_DIR}/pages_content_dirty_expected.txt"
+  check_file pages_content_both "${pages_content_both_dir}/HTML.md" "${TESTS_DIR}/pages_content_html.md"
+  check_file pages_content_both "${pages_content_both_dir}/Dirty.md" "${TESTS_DIR}/pages_content_row.md"
 
   pages_content_utf_dir="${results}/pages_content_utf"
   run pages_content_utf "$PYTHON_BIN" "${ROOT}/pages_content.py" \

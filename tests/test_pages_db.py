@@ -26,6 +26,7 @@ class TestPagesDB(unittest.TestCase):
         self.assertEqual(first.id, "1")
         self.assertEqual(first.title, "Home")
         self.assertEqual(first.content, "Welcome home")
+        self.assertEqual(first.content_bytes, 12)
         self.assertEqual(first.status, "publish")
         self.assertEqual(first.date, "2023-01-01")
 
@@ -206,6 +207,7 @@ class TestPagesDB(unittest.TestCase):
     def test_include_content_false(self) -> None:
         result = parse_dump(TESTS_DIR / "sample.out", include_content=False)
         self.assertEqual(result.rows[0].content, "")
+        self.assertEqual(result.rows[0].content_bytes, 12)
 
     def test_duplicate_id_count(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

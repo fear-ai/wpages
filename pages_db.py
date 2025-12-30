@@ -36,6 +36,7 @@ class Row:
     id: str
     title: str
     content: str
+    content_bytes: int
     status: str
     date: str
 
@@ -149,6 +150,7 @@ def parse_dump(
                 continue
 
             post_id, title, content, status, post_date = parts
+            content_bytes = len(content.encode("utf-8"))
             _validate_id(post_id, stats)
             if post_id:
                 if post_id in seen_ids:
@@ -164,6 +166,7 @@ def parse_dump(
                     id=post_id,
                     title=title,
                     content=content,
+                    content_bytes=content_bytes,
                     status=status,
                     date=post_date,
                 )

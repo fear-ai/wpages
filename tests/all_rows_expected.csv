@@ -1,8 +1,8 @@
-Home,1,publish,2023-01-01
-Home,2,draft,2024-01-01
-About,3,draft,2022-01-01
-About Us,4,publish,2023-05-01
-Contact,5,private,2023-07-01
-contact,6,publish,2023-08-01
-Blog,7,publish,2023-02-01
-News,8,publish,2023-03-01
+Home,1,publish,2023-01-01,12
+Home,2,draft,2024-01-01,10
+About,3,draft,2022-01-01,13
+About Us,4,publish,2023-05-01,16
+Contact,5,private,2023-07-01,12
+contact,6,publish,2023-08-01,17
+Blog,7,publish,2023-02-01,12
+News,8,publish,2023-03-01,12

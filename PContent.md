@@ -20,7 +20,8 @@ and stronger character handling while keeping the implementation lightweight.
 6) Unescape HTML entities and normalize line endings.
 7) Filter control, zero-width, and non-ASCII characters (default replace with space).
 8) Normalize whitespace and collapse repeated blank lines.
-9) Write ASCII text with a trailing newline (UTF-8 when `--utf` or `--raw`).
+9) Write ASCII output with a trailing newline (UTF-8 when `--utf` or `--raw`);
+   text mode writes `.txt`, markdown writes `.md`, and `--format both` writes both.
 
 ## Text Output Conversions
 
@@ -162,7 +163,7 @@ Implications:
 - Pages options: --pages, --prefix/--noprefix, --case/--nocase.
 - Filter options: --replace, --raw, --utf, --notab, --nonl.
 - Dump options: --rows, --notags.
-- Tool-specific options: --footer, --format, --table-delim.
+- Tool-specific options: --footer, --format, --table-delim (`--format` supports text, markdown, both).
 
 ## Warnings
 - Missing page names in the focus list are reported as warnings.

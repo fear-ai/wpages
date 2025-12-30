@@ -98,7 +98,7 @@ def clean_text(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Extract page text from a mysql tab dump and write per-page .txt files."
+        description="Extract page text from a mysql tab dump and write per-page .text files."
     )
     parser.set_defaults(output_dir=".")
     parser.add_argument(
@@ -209,7 +209,7 @@ def main() -> int:
             return 1
         if not args.footer:
             cleaned = strip_footer(cleaned)
-        out_path = output_dir / safe_filename(match.entry.name)
+        out_path = output_dir / safe_filename(match.entry.name, ".text")
         try:
             write_text_check(
                 out_path,

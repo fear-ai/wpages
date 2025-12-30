@@ -17,6 +17,21 @@ Progress
 - pages_content.py now supports Markdown output, ordered list numbering, link/image titles, scheme blocking, and list/table structure warnings.
 - Tests split into list/text/content/unit groups, with new content-focused coverage in tests/test_pages_content.py.
 
+Implemented focus
+
+Capabilities
+- Dump parsing and validation with strict/permit modes, size limits, and line-ending normalization.
+- Focus matching with exact/prefix/case controls, dedupe, and best-row selection.
+- Text extraction with tag/entity removal, whitespace normalization, character filtering, optional footer stripping, and per-page counts.
+- Content extraction with structure-aware conversion, Markdown support, scheme blocking, malformed-structure warnings, and per-page counts.
+- Domain probing via fetch_domains for basic HTTP reachability and capture.
+
+Outputs
+- Per-page content files: `.text` from pages_text for stripped plain text review; `.txt` (structured text) and `.md` (Markdown) from pages_content for format-preserving exports; `--format both` writes `.txt` and `.md` in the same run.
+- Listing artifacts: `pages.csv` includes title/id/status/date plus content_bytes for triage, and `pages.list` is titles-only for reruns; both are written when `--output-dir` is used.
+- Debug artifacts: `--rows DIR` dumps numbered row files; `--notags` writes `<Page>_notags.txt`.
+- Domain probe artifacts: `wget.log`, `wget.status`, `index.html` (when downloaded), and `domains.csv`.
+
 Implementation
 - pages_db.py: parse_dump returns rows + stats with limits, csv-in mode, and newline="\\n" to avoid CR splitting; trims trailing CR/LF and strips leading CR to tolerate LFCR; warnings emitted via pages_cli.py.
 - pages_cli.py: shared CLI options include `--rows` to dump raw row values for debugging.

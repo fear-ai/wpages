@@ -1,8 +1,8 @@
 Tests for WPages tooling
 
 Applicability:
-- pages_list.py CLI tests validate stdout CSV and stderr warnings/errors; warnings are non-fatal (exit 0) and errors exit 1 with only stderr output.
-- pages_text.py CLI tests validate output .txt files per focus name.
+- pages_list.py CLI tests validate stdout CSV (including content_bytes, the UTF-8 byte length of post_content) and stderr warnings/errors; warnings are non-fatal (exit 0) and errors exit 1 with only stderr output.
+- pages_text.py CLI tests validate output .text files per focus name.
 - pages_content.py CLI tests validate output .txt files per focus name and content formatting options.
 - pages_db.py unit tests validate parse_dump behavior and index helpers.
 - pages_focus.py unit tests validate focus list parsing and matching helpers.
@@ -43,7 +43,7 @@ Fixtures:
 - *.tsv files use the same format as *.out.
 - *.list files are pages.list entries (one per line or comma-separated) matched against post_title.
 - tests/no_pages_list/ and tests/empty_pages_list/ are working directories for missing/empty default pages.list.
-- Expected outputs live in tests/*_expected.csv, tests/pages_text_*_expected.txt, and tests/*.md for Markdown output.
+- Expected outputs live in tests/*_expected.csv, tests/default_expected.list, tests/pages_text_*_expected.txt, and tests/*.md for Markdown output.
 
 Input fixtures:
 - tests/sample.out: valid header and 8 rows; includes duplicate titles (Home), case variation (Contact/contact), and mixed statuses to exercise pick_best.
@@ -114,7 +114,7 @@ CLI integration tests:
 pages_list.py CLI tests (basic and matching):
 Base: python3 pages_list.py --input tests/sample.out --pages tests/sample.list
 - Defaults: Base -> stdout tests/default_expected.csv.
-- Optional output file: Base --output-dir DIR writes pages.csv to DIR (stdout is suppressed).
+- Optional output files: Base --output-dir DIR writes pages.csv and pages.list to DIR (stdout is suppressed).
 - Exact match: Base --only -> stdout tests/sample_only_expected.csv.
 - CSV-in mode: Base --only --csvin -> stdout tests/sample_only_expected.csv.
 - Prefix enabled: Base with --pages tests/prefix_only.list --only --prefix -> stdout tests/prefix_only_expected.csv.
@@ -165,7 +165,7 @@ pages_list.py behavior notes:
 
 pages_text.py CLI tests:
 Base (sample): python3 pages_text.py --input tests/sample.out --pages tests/sample.list --output-dir DIR
-- Basic extraction: Base -> Home.txt, About.txt, Contact.txt match tests/pages_text_*_expected.txt.
+- Basic extraction: Base -> Home.text, About.text, Contact.text match tests/pages_text_*_expected.txt.
 - Optional dump notags: Base --notags writes `<Page>_notags.txt` dump notags alongside output files (existence is checked).
 - Output directory creation: Base with DIR=<new_dir> creates the directory and writes expected files.
 - Output directory error: Base with DIR=<file_path> exits with "output path is not a directory".
@@ -174,11 +174,11 @@ Base (missing): python3 pages_text.py --input tests/missing_row.out --pages test
 - Missing focus warning: Base -> stderr contains "Warning: Missing page: Missing" and does not write Missing.txt.
 
 Base (content): python3 pages_text.py --input tests/content.out --pages tests/content.list --output-dir DIR
-- UTF-8 output: Base --utf -> Dirty.txt matches tests/pages_text_dirty_utf_expected.txt.
-- Raw output: Base --raw -> Dirty.txt matches tests/pages_text_dirty_raw_expected.txt.
+- UTF-8 output: Base --utf -> Dirty.text matches tests/pages_text_dirty_utf_expected.txt.
+- Raw output: Base --raw -> Dirty.text matches tests/pages_text_dirty_raw_expected.txt.
 
 Base (escapes): python3 pages_text.py --input tests/escapes.out --pages tests/escapes.list --output-dir DIR
-- No tabs/newlines: Base --notab --nonl -> Escapes.txt matches tests/escapes_notab_nonl_expected.txt.
+- No tabs/newlines: Base --notab --nonl -> Escapes.text matches tests/escapes_notab_nonl_expected.txt.
 
 pages_content.py CLI tests:
 Base (sample): python3 pages_content.py --input tests/sample.out --pages tests/sample.list --output-dir DIR
@@ -192,6 +192,7 @@ Base (content): python3 pages_content.py --input tests/content.out --pages tests
 - Replacement character: Base --replace "?" replaces stripped characters in Dirty.txt.
 - Replacement character validation: Base --replace "??" exits with an error.
 - Markdown output: Base --format markdown -> HTML.md, Dirty.md match Markdown expected outputs.
+- Dual output: Base --format both -> HTML.txt/Dirty.txt and HTML.md/Dirty.md in the same run.
 - UTF-8 output: Base --utf -> Dirty.txt matches tests/pages_content_dirty_utf_expected.txt.
 - Raw output: Base --raw -> Dirty.txt matches tests/pages_content_dirty_raw_expected.txt.
 

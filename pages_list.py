@@ -28,6 +28,7 @@ def emit_row(focus: str, row, match: str) -> dict:
             "status": "",
             "date": "",
             "match": match or "none",
+            "content_bytes": "",
         }
     return {
         "focus": focus or "",
@@ -36,6 +37,7 @@ def emit_row(focus: str, row, match: str) -> dict:
         "status": row.status,
         "date": row.date,
         "match": match or "",
+        "content_bytes": row.content_bytes,
     }
 
 
@@ -109,6 +111,7 @@ def main() -> int:
 
     output_dir_value = getattr(args, "output_dir", None)
     output_path = None
+    list_path = None
     if output_dir_value is not None:
         output_dir = Path(output_dir_value)
         try:
@@ -117,6 +120,7 @@ def main() -> int:
             error(str(exc))
             return 1
         output_path = output_dir / "pages.csv"
+        list_path = output_dir / "pages.list"
 
     output = []
     rows = result.rows
@@ -154,11 +158,14 @@ def main() -> int:
                     row["date"],
                     row["match"],
                     row["focus"],
+                    row["content_bytes"],
                 ]
             )
     else:
         for row in output:
-            writer.writerow([row["title"], row["id"], row["status"], row["date"]])
+            writer.writerow(
+                [row["title"], row["id"], row["status"], row["date"], row["content_bytes"]]
+            )
 
     output_text = buffer.getvalue()
     if output_dir_value is None:
@@ -166,6 +173,13 @@ def main() -> int:
     if output_path is not None:
         try:
             write_text_check(output_path, output_text, encoding="utf-8", label="output")
+        except OSError as exc:
+            error(str(exc))
+            return 1
+    if list_path is not None:
+        list_text = "\n".join(row["title"] for row in output if row["title"]) + "\n"
+        try:
+            write_text_check(list_path, list_text, encoding="utf-8", label="output")
         except OSError as exc:
             error(str(exc))
             return 1

@@ -684,7 +684,7 @@ def _is_list_item_line(line: str) -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Extract page content from a mysql tab dump and write per-page .txt files."
+        description="Extract page content from a mysql tab dump and write per-page files."
     )
     parser.set_defaults(output_dir=".")
     add_common_args(
@@ -707,9 +707,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--format",
-        choices=("text", "markdown"),
+        choices=("text", "markdown", "both"),
         default="text",
-        help="Output format: text or markdown (default: text).",
+        help="Output format: text, markdown, or both (default: text).",
     )
     add_dump_args(parser, include_notags=True)
     add_filter_args(parser)
@@ -729,7 +729,9 @@ def main() -> int:
     output_errors = "ignore" if output_encoding == "ascii" else "strict"
     table_delim = _table_delimiter(args.table_delim)
     output_format = args.format
-    output_ext = ".md" if output_format == "markdown" else ".txt"
+    output_formats = (
+        ("text", "markdown") if output_format == "both" else (output_format,)
+    )
 
     use_prefix = args.use_prefix if args.use_prefix is not None else False
     case_sensitive = args.case_sensitive if args.case_sensitive is not None else True
@@ -785,59 +787,95 @@ def main() -> int:
             if args.notags
             else None
         )
-        if output_format == "markdown":
+        combined_counts = None
+        combined_filter_counts = None
+        wrote_notags = False
+        for fmt in output_formats:
             counts = SanitizeCounts()
             filter_counts = FilterCounts()
+            notags_sink = None
+            if notags_path is not None and not wrote_notags:
+                notags_sink = make_dump_notags_sink(
+                    notags_path,
+                    encoding=output_encoding,
+                    errors=output_errors,
+                )
+                wrote_notags = True
             try:
-                cleaned = clean_md(
-                    match.row.content,
-                    replace_char=replace_char,
-                    keep_tabs=keep_tabs,
-                    keep_newlines=keep_newlines,
-                    ascii_only=ascii_only,
-                    raw=raw,
-                    counts=counts,
-                    filter_counts=filter_counts,
-                    notags_sink=(
-                        None
-                        if notags_path is None
-                        else make_dump_notags_sink(
-                            notags_path,
-                            encoding=output_encoding,
-                            errors=output_errors,
-                        )
-                    ),
+                if fmt == "markdown":
+                    cleaned = clean_md(
+                        match.row.content,
+                        replace_char=replace_char,
+                        keep_tabs=keep_tabs,
+                        keep_newlines=keep_newlines,
+                        ascii_only=ascii_only,
+                        raw=raw,
+                        counts=counts,
+                        filter_counts=filter_counts,
+                        notags_sink=notags_sink,
+                    )
+                    output_ext = ".md"
+                else:
+                    cleaned = clean_content(
+                        match.row.content,
+                        table_delim=table_delim,
+                        replace_char=replace_char,
+                        keep_tabs=keep_tabs,
+                        keep_newlines=keep_newlines,
+                        ascii_only=ascii_only,
+                        raw=raw,
+                        counts=counts,
+                        filter_counts=filter_counts,
+                        notags_sink=notags_sink,
+                    )
+                    output_ext = ".txt"
+            except OSError as exc:
+                error(str(exc))
+                return 1
+            if not args.footer:
+                cleaned = strip_footer(cleaned)
+            out_path = output_dir / safe_filename(match.entry.name, output_ext)
+            try:
+                write_text_check(
+                    out_path,
+                    cleaned,
+                    encoding=output_encoding,
+                    errors=output_errors,
+                    label="output",
                 )
             except OSError as exc:
                 error(str(exc))
                 return 1
-        else:
-            counts = SanitizeCounts()
-            filter_counts = FilterCounts()
-            try:
-                cleaned = clean_content(
-                    match.row.content,
-                    table_delim=table_delim,
-                    replace_char=replace_char,
-                    keep_tabs=keep_tabs,
-                    keep_newlines=keep_newlines,
-                    ascii_only=ascii_only,
-                    raw=raw,
-                    counts=counts,
-                    filter_counts=filter_counts,
-                    notags_sink=(
-                        None
-                        if notags_path is None
-                        else make_dump_notags_sink(
-                            notags_path,
-                            encoding=output_encoding,
-                            errors=output_errors,
-                        )
-                    ),
-                )
-            except OSError as exc:
-                error(str(exc))
-                return 1
+            print(f"Wrote {out_path} ({match.row.id}, {match.label})")
+            if combined_counts is None:
+                combined_counts = counts
+                combined_filter_counts = filter_counts
+            else:
+                for field in combined_counts.__dataclass_fields__:
+                    setattr(
+                        combined_counts,
+                        field,
+                        max(
+                            getattr(combined_counts, field),
+                            getattr(counts, field),
+                        ),
+                    )
+                for field in combined_filter_counts.__dataclass_fields__:
+                    setattr(
+                        combined_filter_counts,
+                        field,
+                        max(
+                            getattr(combined_filter_counts, field),
+                            getattr(filter_counts, field),
+                        ),
+                    )
+
+        counts = combined_counts if combined_counts is not None else SanitizeCounts()
+        filter_counts = (
+            combined_filter_counts
+            if combined_filter_counts is not None
+            else FilterCounts()
+        )
         if counts.other_scheme_links:
             warn(
                 f"Non-HTTP scheme links: {counts.other_scheme_links} in page '{match.entry.name}'"
@@ -854,21 +892,6 @@ def main() -> int:
             warn(
                 f"Missing scheme images: {counts.missing_scheme_images} in page '{match.entry.name}'"
             )
-        if not args.footer:
-            cleaned = strip_footer(cleaned)
-        out_path = output_dir / safe_filename(match.entry.name, output_ext)
-        try:
-            write_text_check(
-                out_path,
-                cleaned,
-                encoding=output_encoding,
-                errors=output_errors,
-                label="output",
-            )
-        except OSError as exc:
-            error(str(exc))
-            return 1
-        print(f"Wrote {out_path} ({match.row.id}, {match.label})")
         info_page_count("Blocks removed", counts.blocks_rm, match.entry.name)
         info_page_count("Comments removed", counts.comments_rm, match.entry.name)
         info_page_count("Tags removed", counts.tags_rm, match.entry.name)
