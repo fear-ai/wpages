@@ -1,111 +1,69 @@
 Status for WPages tooling and tests
 
+Introduction
+- This file summarizes current state, risks, and next actions. See WDocs.md for document scope and partitioning.
+
+Quick Start
+- List pages from a dump: `python3 pages_list.py --input db.out --pages pages.list`
+- Extract cleaned text: `python3 pages_text.py --input db.out --pages pages.list --output-dir text`
+- Extract structured content (text + markdown): `python3 pages_content.py --input db.out --pages pages.list --output-dir content --format both`
+
 Documents
-- WPages.md documents the WordPress page dump workflow, requirements, and usage guidance.
-- HStrip.md documents content sanitization policies and considerations.
-- PText.md documents pages_text.py cleaning behavior and improvements.
-- PContent.md documents pages_content.py extraction behavior.
-- Status.md tracks implementation state, decisions, and backlog items.
-- tests/TESTS.md documents fixture-based CLI tests and runner usage.
+- Documentation map and partitioning: see WDocs.md.
 
 Environment
 - Python 3 is required; scripts use the standard library only.
 - CLI scripts run locally, read/write the filesystem, and write results to stdout/stderr.
-- No network access or external services are required.
+- Core processing does not require network access; fetch_domains uses wget and needs network access when run.
 
-Progress
-- pages_content.py now supports Markdown output, ordered list numbering, link/image titles, scheme blocking, and list/table structure warnings.
-- Tests split into list/text/content/unit groups, with new content-focused coverage in tests/test_pages_content.py.
-
-Implemented focus
+Current status
 
 Capabilities
 - Dump parsing and validation with strict/permit modes, size limits, and line-ending normalization.
 - Focus matching with exact/prefix/case controls, dedupe, and best-row selection.
 - Text extraction with tag/entity removal, whitespace normalization, character filtering, optional footer stripping, and per-page counts.
-- Content extraction with structure-aware conversion, Markdown support, scheme blocking, malformed-structure warnings, and per-page counts.
+- Content extraction with structure-aware conversion, Markdown support (including title escaping), scheme blocking, malformed-structure warnings, and per-page counts.
 - Domain probing via fetch_domains for basic HTTP reachability and capture.
 
 Outputs
-- Per-page content files: `.text` from pages_text for stripped plain text review; `.txt` (structured text) and `.md` (Markdown) from pages_content for format-preserving exports; `--format both` writes `.txt` and `.md` in the same run.
-- Listing artifacts: `pages.csv` includes title/id/status/date plus content_bytes for triage, and `pages.list` is titles-only for reruns; both are written when `--output-dir` is used.
-- Debug artifacts: `--rows DIR` dumps numbered row files; `--notags` writes `<Page>_notags.txt`.
-- Domain probe artifacts: `wget.log`, `wget.status`, `index.html` (when downloaded), and `domains.csv`.
+- Per-page content files in plain text and Markdown for review and reuse.
+- Listing artifacts for reruns and triage: pages.csv and pages.list.
+- Debug artifacts: row dumps and notags dumps.
+- Domain probe artifacts: wget.log, wget.status, index.html, and domains.csv.
 
-Implementation
-- pages_db.py: parse_dump returns rows + stats with limits, csv-in mode, and newline="\\n" to avoid CR splitting; trims trailing CR/LF and strips leading CR to tolerate LFCR; warnings emitted via pages_cli.py.
-- pages_cli.py: shared CLI options include `--rows` to dump raw row values for debugging.
-- pages_focus.py: focus list parsing and match_entries encapsulate matching behavior; warnings on duplicate focus names.
-- pages_list.py: CLI list output and matching behavior documented in WPages.md and PList.md.
-- pages_util.py: shared helpers for output paths and text cleanup (decode_mysql_escapes, strip_footer, and safe_filename with Windows-safe ASCII rules, 255-byte cap, and `_N` suffixing).
-- pages_text.py: legacy cleaner; strips tags/entities, filters control/zero-width/non-ASCII with default space replacement (overridable via --replace, plus --raw/--utf/--nonl/--notab), writes ASCII by default (UTF-8 for --utf/--raw), and supports `--notags` dump notags after tag stripping; behavior documented in PText.md.
-- pages_content.py: text/Markdown extraction, scheme blocking, ordered lists, structural warnings, and optional `--notags` dump notags after tag stripping; image-only anchors use alt text (or `image`) for text output; character filtering replaces control/zero-width/non-ASCII with space by default or `--replace` (suppressed per run); behavior documented in PContent.md.
-- tests: runner groups are documented in tests/TESTS.md.
-
-Module partitioning
-- pages_db.py: dump parsing, header/row validation, size/line limits, parse stats.
+Modules
+- pages_util.py: shared helpers (safe_filename, footer stripping, decode_mysql_escapes, file I/O guards).
+- pages_db.py: dump parsing, header/row validation, size limits, parse stats.
 - pages_focus.py: focus list parsing, dedupe, normalization, and matching logic.
 - pages_cli.py: shared CLI options, input validation, error/warning emission.
-- pages_list.py: list-mode CLI output (CSV) and focus/details listing behavior.
-- pages_text.py: plain text extraction policy and output files.
-- pages_content.py: structure-aware extraction and Markdown/text output policy.
-- pages_util.py: shared output-layer helpers (escape decoding, footer stripping, filenames).
+- pages_list.py: list-mode output (pages.csv/pages.list) and match labeling.
+- pages_text.py: plain text extraction and character filtering path.
+- pages_content.py: structure-aware extraction and Markdown output path.
 
-Filenames
-- safe_filename applies Windows-safe ASCII rules: NFKD + drop non-ASCII, invalid
-  character replacement, whitespace/dot trimming, 255-byte cap (ext preserved),
-  reserved-name suffixing, and `_N` collision suffixes.
+Open issues
 
-Decisions
-1) Raw dump handling (embedded tabs/newlines) postponed; expect mysql -e tab output.
-2) Backslash unescaping policy postponed.
-3) Row integrity and validation remain warnings; dedupe and error escalation postponed; possible policies include keep first/keep best/aggregate focus names and suppressing prefix hits after exact matches.
-4) File size heuristic postponed.
-5) Focus list streaming postponed.
-6) Focus list encoding error policy postponed.
+Input parsing and dump fidelity
+- Question: Should ASCII-only remain the default output policy? (P:Medium U:Later)
+  Choices: (A) Keep ASCII default; (B) default UTF-8; (C) default UTF-8 for markdown only.
+  Postpone: wait for dump profiling on non-ASCII frequency and impact.
+- Question: Is streaming parsing required for large dumps? (P:Medium U:Later)
+  Choices: (A) keep in-memory; (B) stream rows; (C) hybrid with limits.
+  Postpone: revisit after measuring dump sizes.
+- Question: Should we revisit URL normalization beyond scheme blocking? (P:Low U:Later)
+  Choices: (A) keep scheme blocking only; (B) normalize/strip tracking parameters; (C) full URL normalization.
+  Postpone: revisit if tracking/canonicalization becomes a requirement.
 
-Concerns
-1) Input brittleness: raw dumps with literal tabs/newlines will misparse unless using mysql -e or --csvin (see Decisions 1 and 2).
-2) Warning visibility: parse_dump returns stats only; non-CLI callers must surface warnings explicitly (see Decision 3).
-3) Memory scale: rows and content live in memory; large dumps need limits or profiling (see Decisions 4 and 5).
-4) Character removal/replacement is now summarized as Info counts per page (control/zero-width/tab/newline/non-ASCII removals and replacement chars). Sanitization steps (tags/blocks/entities) also emit Info counts. Data loss is still possible when ASCII-only output is used.
+Pending steps (questions only)
+- Question: Shared sanitization refactor scope and sequence? (P:Medium U:Near)
+  Choices: (A) extract shared helpers first; (B) refactor pages_text/pages_content directly; (C) delay until validation is expanded.
+- Question: Markdown validation scope? (P:Medium U:Near)
+  Choices: (A) code fences + inline code only; (B) add tables/links/images; (C) full Markdown lint pass.
+- Question: Page meta sidecars and menu/media exports needed? (P:Medium U:Later)
+  Choices: (A) defer; (B) export meta + menus + attachments now; (C) export meta only.
 
-Pending
-- Raw dump/backslash unescaping decisions (see Decisions 1-2).
-- File size heuristics and streaming approach (see Decisions 4-5).
-- Focus list encoding error policy (see Decision 6).
-- URL normalization policy beyond scheme blocking (see HStrip.md).
-- Removal/replacement reporting policy (counts vs warnings) for sanitization steps (see HStrip.md).
-- Revisit filename edge-case test coverage (trailing dots/spaces, long extensions, empty-base suffixing).
-- Revisit UTF-8 + Markdown output tests (CLI and unit coverage).
-- Revisit sharing HTML/entity stripping between pages_text.py and pages_content.py.
-- Postponed: performance/scale testing (large fixtures, streaming benchmarks).
-- Postponed: shared sanitization refactor between text/content (design alignment needed).
-- Postponed: additional filename edge-case tests beyond the current set.
+Gaps and risks
+- Input brittleness with raw dumps; requires mysql -e/--csvin usage discipline.
+- Memory scale limits on large dumps until streaming is revisited.
 
-Considerations (general code/feature scope)
-- Current scope is appropriate: parsing, focus selection, text/Markdown extraction, sanitization, and per-page counts.
-- Feature breadth is intentional; complexity comes from supporting both text and Markdown plus safety reporting.
-
-Considerations (implementation detail)
-- pages_content.py remains large because it owns both format conversions and count/warning emission.
-- Some logic is duplicated across pages_text.py and pages_content.py (block stripping, entity handling, character filtering).
-- Inline parsing helpers (anchors/images, scheme checks) are tightly coupled to content rendering instead of reusable utilities.
-- Normalization logic (whitespace, marker merging, adjacent inline separation) is only in content extraction.
-
-Partitioning and sharing opportunities
-- Extract shared sanitize pipeline (block/comment/tag strip, entity unescape, character filtering) to a common module.
-- Centralize inline parsing helpers (anchor/image parsing, scheme blocking/marking) to reduce duplication.
-- Keep format-specific rendering in pages_content.py, but reuse shared helpers for counts and preprocessing.
-
-Next several steps (when revisited)
-1) Decide on a shared sanitization module scope (minimal: block/comment/tag/entity + filter_characters integration).
-2) Move reusable anchor/image parsing + scheme handling into a shared helper, keep format-specific formatting in pages_content.py.
-3) Refactor pages_text.py to call the shared sanitize pipeline and focus on output formatting only.
-4) Add regression tests to lock behavior before/after refactor (reuse existing fixtures).
-
-TODO
-- Add progress reporting for long runs (every N lines and matches).
-- Report when --lines truncates input or when oversized lines are skipped outside CLI warnings.
-- Use a prefix index or sorted list for details labeling to reduce O(R x F) scans.
-- Type pages_list emit_row output with a TypedDict or small dataclass for clarity.
+Planned steps and tasks
+- Progress reporting: emit periodic counters and explicit truncation warnings for --lines/--bytes.

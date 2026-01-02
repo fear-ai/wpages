@@ -5,6 +5,9 @@ Content was exported from a WordPress MySQL dump for web display. We want to reu
 selected pages on a new site. The pipeline should clean and sanitize content to
 reduce ambiguity and security risk while preserving usable structure.
 
+Related
+- Implemented behavior is documented in PText.md and PContent.md.
+
 ## Customer
 ### Wants
 - Safer and more consistent content before manual review and edits.
@@ -122,12 +125,6 @@ expect the situation per dump or per page; confirm with `db.out`.
 - Prioritize a rapid, solid working implementation.
 - Default handling for strongly suspicious sequences is removal.
 
-### Current Implementation Notes
-- pages_text.py decodes MySQL literal escapes, strips script/style/comments, strips all HTML tags, removes entities (replacing with spaces), normalizes CRLF/CR to LF, collapses whitespace, and filters control/zero-width/non-ASCII with default space replacement; `--replace` can override or delete, with `--raw/--utf/--nonl/--notab` to adjust filtering.
-- pages_content.py preserves structure (headings/lists/tables), extracts link/image destinations, and blocks bad URL schemes with bracketed labels. Entity decoding happens before character filtering; character filtering removes control chars (except \\n/\\t), zero-width chars, and non-ASCII with default replacement by space and optional replacement via --replace.
-- Replacement suppression is one-per-run of removed characters (consecutive removals collapse to a single replacement).
-- URL extraction happens before character filtering, so control/zero-width/non-ASCII characters can appear in extracted URLs prior to filtering.
-
 ### Sanitization Tooling Alternatives
 - Python stdlib HTMLParser: Pros: no dependencies, predictable behavior. Cons:
   limited sanitization features and verbose rule enforcement.
@@ -164,20 +161,6 @@ expect the situation per dump or per page; confirm with `db.out`.
 - Windows disallows < > : " / \\ | ? * and reserved names like CON, PRN, AUX,
   NUL, COM1.
 
-### Import Paths
-### WP-CLI import
-- Preferred: `wp post create --post_type=page --post_title=... --post_content="$(cat file)"`
-- For bulk: generate a CSV with columns `post_title`, `post_content`, `post_status`
-  and import via WP-CLI or a helper script.
-
-### Editor-based import
-- Use Markdown for manual paste or a plugin that accepts Markdown.
-- If no Markdown plugin is available, paste sanitized plain text and reformat.
-
-### WordPress import tooling
-- Pros: aligns with WP expectations and preserves WP-specific formats.
-- Cons: less control and possible reintroduction of unsafe content.
-
 ### Open Questions
 - How strict should sanitization be for tables and lists?
 - How should UTF-8 characters be handled in non-HTML output?
@@ -186,20 +169,9 @@ expect the situation per dump or per page; confirm with `db.out`.
 - How far should style handling go beyond basic stripping?
 
 ### Gaps and Limitations
-- No sanitizer pipeline or ruleset implemented yet.
-- No import tooling yet for WP-CLI or editor workflows.
-- No validation or policy enforcement for links, images, or shortcodes.
-- UTF-8 output is optional via `--utf` or `--raw`; validation remains minimal and
-  ASCII-only output is still the default.
-- Unicode normalization is limited to NFKD in the ASCII-only path; no broader
-  Unicode escaping policy is implemented.
-- Filename hardening is implemented in `pages_util.safe_filename` (see
-  `PFilename.md`) with Windows-safe ASCII rules and length limits.
-- Current table/list behavior and limitations are documented in `PContent.md`.
-
-### Implementation References
-- pages_text.py behavior and improvement notes are documented in `PText.md`.
-- pages_content.py behavior is documented in `PContent.md`.
+- No complete policy for links, images, or shortcodes beyond basic scheme blocking.
+- Unicode normalization policy beyond ASCII-folding is not fully defined.
+- Table/list degradation rules remain a policy choice and vary by content.
 
 ### Discussion Guide
 - Design: capture requirements and features with decision status and rationale.
@@ -221,5 +193,4 @@ expect the situation per dump or per page; confirm with `db.out`.
 - Define attribute and URL scheme policies (href/src) and implement filtering.
 - Add tag allowlist rules for HTML-to-text/Markdown conversion.
 - Draft a sidecar metadata format and file naming scheme.
-- Draft a WP-CLI import script and CSV schema.
 - Add sanitization tool evaluation notes and sample config.

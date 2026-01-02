@@ -3,6 +3,10 @@
 ## Purpose
 Document the CSV listing behavior and CLI options for `pages_list.py`.
 
+Related
+- Workflow overview and shared CLI grouping: WPages.md.
+- Content extraction behavior: PText.md and PContent.md.
+
 ## Behavior Summary
 - Reads a MySQL tab dump and emits CSV to stdout (unless --output-dir is used).
 - Uses focus list entries from the --pages file for matching and labels.

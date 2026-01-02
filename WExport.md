@@ -3,6 +3,7 @@ WordPress export spec (WPages)
 Purpose
 - Define the export formats, field order, and SQL for data extraction that feeds WPages.
 - Provide ready-to-run single-line SELECT statements suitable for `mysql -e` usage.
+- Import workflows and constraints are documented in WImport.md; export field choices should align with those needs.
 
 General conventions
 - Output is expected as MySQL tab-delimited (mysql -e default).

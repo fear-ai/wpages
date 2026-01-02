@@ -3,6 +3,7 @@ WordPress import formats and options (findings)
 Scope
 - This document summarizes practical import formats/methods for WordPress and how WPages outputs can be used or converted.
 - WPages extracts content from MySQL dumps; it does not generate a WordPress import file by itself.
+- Export field definitions and SQL are in WExport.md; changes there enable additional import capabilities described here.
 
 Import formats and methods (full set)
 - WXR (WordPress eXtended RSS, XML): core export/import path via Tools -> Export/Import. Best for full fidelity (authors, pages, posts, attachments, metadata).

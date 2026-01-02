@@ -247,7 +247,8 @@ def _convert_anchor_md(match: re.Match[str], counts: SanitizeCounts | None = Non
         inner_text = url
     if url:
         if title:
-            return f'[{inner_text}]({url} "{title}")'
+            safe_title = title.replace('"', '\\"').replace("\n", " ")
+            return f'[{inner_text}]({url} "{safe_title}")'
         return f"[{inner_text}]({url})"
     return inner_text
 
@@ -275,7 +276,8 @@ def _convert_image_md(match: re.Match[str], counts: SanitizeCounts | None = None
             counts.other_scheme_images += 1
     if src:
         if title:
-            return f'![{alt}]({src} "{title}")'
+            safe_title = title.replace('"', '\\"').replace("\n", " ")
+            return f'![{alt}]({src} "{safe_title}")'
         return f"![{alt}]({src})"
     if alt:
         return alt
@@ -647,6 +649,7 @@ def _merge_dangling_markers(lines: list[str]) -> list[str]:
 
 def _separate_adjacent_inline(line: str, *, markdown: bool) -> str:
     if markdown:
+        # Only separates adjacency after link/image closers; inline code adjacency is not handled.
         line = re.sub(r"\)\s*(?=[!\[])", ") ", line)
         line = re.sub(r"\)\s*(?=[A-Za-z0-9])", ") ", line)
         line = re.sub(r"\)\s*(?=\{)", ") ", line)

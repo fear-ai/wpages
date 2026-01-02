@@ -4,6 +4,12 @@
 Document small, low-risk improvements to the current plain text cleaning path
 (`pages_text.py`) and a concrete testing/validation plan.
 
+Related
+- Workflow overview and shared CLI grouping: WPages.md.
+- Listing behavior and pages.list usage: PList.md.
+- Sanitization policy and rationale: HStrip.md.
+- Structure-aware extraction and Markdown: PContent.md.
+
 ## Current Behavior Summary
 - Replaces MySQL literal escapes (`\\r`, `\\n`, `\\t`).
 - Strips scripts, styles, and HTML comments with regex.
@@ -20,7 +26,6 @@ Document small, low-risk improvements to the current plain text cleaning path
 - Sanitization and character filtering emit per-page Info counts (blocks/comments/tags/entities removed; control/zero-width/tab/newline/non-ASCII removals; replacement chars).
 - Collapses blank lines and ensures a trailing newline.
 - Optional footer stripping ("Resources"/"Community").
- - Parsing uses newline="\\n" to avoid splitting rows on bare \\r inside content.
 
 ## CLI Options (Ordered Groups)
 - Standard options: --input, --output-dir, --lines, --bytes, --csvin,

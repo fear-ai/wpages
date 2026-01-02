@@ -11,12 +11,9 @@ Applicability:
 - pages_util.py unit tests validate shared helper behavior (decode_mysql_escapes, safe_filename, strip_footer), including filename edge cases (trailing dots/spaces, long extensions, empty-base collisions).
 - pages_content.py unit tests validate clean_content and clean_md behavior.
 
-Testing approach and coverage alignment:
-- Unit tests target pure or near-pure functions (parsing helpers, sanitization, conversion) to lock behavior and edge cases.
-- CLI tests validate end-to-end wiring (I/O, warnings, output files) and prevent regressions in user-facing behavior.
-- High-risk areas (parsing integrity, sanitization/data loss, scheme handling) get both unit and CLI coverage; lower-risk formatting details stay in unit tests only to reduce redundancy.
-- Avoid duplicating identical assertions across layers unless a CLI message or side effect is the feature.
-- Prefer minimal fixtures that target a single behavior; expand only when necessary to cover combined cases (counts, warnings).
+Coverage focus:
+- This document enumerates CLI/unit checks, fixtures, and expected outputs used to validate behavior.
+- See PList.md, PText.md, and PContent.md for program behavior details.
 
 Runner and conventions:
 - Run all tests: ./tests/run_tests.sh [--results PATH]
@@ -156,13 +153,6 @@ Base: python3 pages_list.py --input tests/sample.out --pages tests/sample.list
 - Empty pages list file (not --only): Base with --pages tests/empty.list -> stdout tests/all_rows_expected.csv.
 - Invalid pages list file (not --only): Base with --pages tests/invalid.list -> stdout tests/all_rows_expected.csv.
 
-pages_list.py behavior notes:
-- Focus list dedupe uses normalized keys; duplicates are skipped with "Duplicate page name skipped" warnings.
-- Input rows are indexed by normalized title in a dict of lists (title_index); duplicates are resolved with pick_best when selecting a focus match.
-- Ordered matching uses a list of normalized keys (focus_keys); match_label returns the first exact or prefix match by focus list order.
-- Not --only output tracks used IDs with a set (used_ids) so matched rows are not emitted twice.
-- With --details, CSV column order is title,id,status,date,match,focus.
-
 pages_text.py CLI tests:
 Base (sample): python3 pages_text.py --input tests/sample.out --pages tests/sample.list --output-dir DIR
 - Basic extraction: Base -> Home.text, About.text, Contact.text match tests/pages_text_*_expected.txt.
@@ -211,7 +201,7 @@ pages_text.py unit tests:
 - Coverage includes FilterCounts integration (control/zero-width/tab/newline/non-ASCII removals and replacement char counts) through clean_text.
 
 pages_content.py unit tests:
-- tests/test_pages_content.py covers links, entities, headings, lists (including nested lists), tables, MySQL escapes, block removal, ASCII output, raw-mode preservation, --notab/--nonl behavior, and Markdown conversions.
+- tests/test_pages_content.py covers links, entities, headings, lists (including nested lists), tables, MySQL escapes, block removal, ASCII output, raw-mode preservation, --notab/--nonl behavior, and Markdown conversions (including adjacency and title escaping).
 - Coverage highlights: text output link conversion (including titles and blocked schemes), table delimiter handling, zero-width removal/replacement, Markdown headings/lists/tables (including ordered lists), image/link conversion (including titles and blocked schemes), pre/code handling (including attributes and mixed nesting), and list/table malformed tag warnings.
 - Coverage includes SanitizeCounts and FilterCounts integration (blocks/tags/entities removed, conversions, missing/blocked/other scheme counts, and filter removal counts).
 - Gaps and problems: no tests for bidi controls or data URIs beyond scheme blocking; Markdown does not emit table header separators; regex parsing can mis-handle `>` inside quoted attributes.

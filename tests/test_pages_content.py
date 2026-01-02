@@ -314,6 +314,20 @@ class TestPagesContent(unittest.TestCase):
             "`line 1`\n",
         )
 
+    def test_clean_md_inline_code_adjacent(self) -> None:
+        text = "<p><code>code</code>Next</p>"
+        self.assertEqual(
+            clean_md(text, replace_char=""),
+            "`code`Next\n",
+        )
+
+    def test_clean_md_inline_code_multiple(self) -> None:
+        text = "<p><code>one</code><code>two</code></p>"
+        self.assertEqual(
+            clean_md(text, replace_char=""),
+            "`one``two`\n",
+        )
+
     def test_clean_md_pre_code_attrs(self) -> None:
         text = '<pre class="code" data-lang="txt"><code class="lang">line 1</code></pre>'
         self.assertEqual(
@@ -412,11 +426,49 @@ class TestPagesContent(unittest.TestCase):
             "A | B\n1 | 2\n",
         )
 
+    def test_clean_md_table_thead(self) -> None:
+        text = (
+            "<table><thead><tr><th>A</th><th>B</th></tr></thead>"
+            "<tbody><tr><td>1</td><td>2</td></tr></tbody></table>"
+        )
+        self.assertEqual(
+            clean_md(text, replace_char=""),
+            "| A | B\n1 | 2\n",
+        )
+
+    def test_clean_md_table_mixed_cells(self) -> None:
+        text = "<table><tr><th>A</th><td>B</td></tr><tr><td>1</td><td>2</td></tr></table>"
+        self.assertEqual(
+            clean_md(text, replace_char=""),
+            "A | B\n1 | 2\n",
+        )
+
+    def test_clean_md_table_empty_cell(self) -> None:
+        text = "<table><tr><td></td><td>X</td></tr></table>"
+        self.assertEqual(
+            clean_md(text, replace_char=""),
+            "| X\n",
+        )
+
+    def test_clean_md_table_malformed_output(self) -> None:
+        text = "<table><tr><td>A</td>"
+        self.assertEqual(
+            clean_md(text, replace_char=""),
+            "A\n",
+        )
+
     def test_clean_md_link_title(self) -> None:
         text = '<a href="https://x" title="T">Link</a>'
         self.assertEqual(
             clean_md(text, replace_char=""),
             '[Link](https://x "T")\n',
+        )
+
+    def test_clean_md_link_title_quotes(self) -> None:
+        text = '<a href="https://x" title="A &quot;quote&quot; here">Link</a>'
+        self.assertEqual(
+            clean_md(text, replace_char=""),
+            '[Link](https://x "A \\"quote\\" here")\n',
         )
 
     def test_clean_md_link_blocked_scheme(self) -> None:
@@ -433,11 +485,32 @@ class TestPagesContent(unittest.TestCase):
             "[One](https://x) [Two](https://y)\n",
         )
 
+    def test_clean_md_image_adjacent(self) -> None:
+        text = '<img src="a.png" alt="A"><img src="b.png" alt="B">'
+        self.assertEqual(
+            clean_md(text, replace_char=""),
+            "![A](a.png) ![B](b.png)\n",
+        )
+
+    def test_clean_md_image_link_adjacent(self) -> None:
+        text = '<img src="a.png" alt="A"><a href="https://x">Link</a>'
+        self.assertEqual(
+            clean_md(text, replace_char=""),
+            "![A](a.png) [Link](https://x)\n",
+        )
+
     def test_clean_md_link_missing_scheme(self) -> None:
         text = '<a href="//example.com/path">Link</a>'
         self.assertEqual(
             clean_md(text, replace_char=""),
             "Link ({scheme?}://example.com/path)\n",
+        )
+
+    def test_clean_md_link_empty_href(self) -> None:
+        text = '<a href="">Link</a>'
+        self.assertEqual(
+            clean_md(text, replace_char=""),
+            "Link\n",
         )
 
     def test_clean_md_image_title(self) -> None:
@@ -447,11 +520,32 @@ class TestPagesContent(unittest.TestCase):
             '![Alt](img.png "T")\n',
         )
 
+    def test_clean_md_image_title_quotes(self) -> None:
+        text = '<img src="img.png" alt="Alt" title="A &quot;quote&quot; here">'
+        self.assertEqual(
+            clean_md(text, replace_char=""),
+            '![Alt](img.png "A \\"quote\\" here")\n',
+        )
+
+    def test_clean_md_image_empty_src(self) -> None:
+        text = '<img src="" alt="Alt">'
+        self.assertEqual(
+            clean_md(text, replace_char=""),
+            "Alt\n",
+        )
+
     def test_clean_md_image_blocked_scheme(self) -> None:
         text = '<img src="blob:xyz" alt="Alt">'
         self.assertEqual(
             clean_md(text, replace_char=""),
             "{Alt}\n",
+        )
+
+    def test_clean_md_image_missing_scheme_output(self) -> None:
+        text = '<img src="//img.test/x.png" alt="Alt">'
+        self.assertEqual(
+            clean_md(text, replace_char=""),
+            "Alt ({scheme?}://img.test/x.png)\n",
         )
 
     def test_clean_md_image_missing_scheme_counts(self) -> None:

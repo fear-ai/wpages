@@ -5,6 +5,13 @@ Define the extraction behavior implemented in `pages_content.py`.
 This replaces the behavior of `pages_text.py` with clearer structure retention
 and stronger character handling while keeping the implementation lightweight.
 
+Related
+- Workflow overview and shared CLI grouping: WPages.md.
+- Listing behavior and pages.list usage: PList.md.
+- Sanitization policy and rationale: HStrip.md.
+- Plain text extraction path: PText.md.
+- Import implications and constraints: WImport.md.
+
 ## Pipeline Overview
 1) Decode MySQL literal escapes: `\\r`, `\\n`, `\\t`.
 2) Remove scripts, styles, and HTML comments.
@@ -91,6 +98,7 @@ and stronger character handling while keeping the implementation lightweight.
 - `<pre>`/`<code>` blocks become fenced code blocks; inline `<code>` uses backticks.
 - `<strong>/<b>` become `**` and `<em>/<i>` become `*`.
 - Links become `[text](url)` and images become `![alt](src)`.
+- Markdown link/image titles are escaped (quotes and newlines) to avoid breaking syntax.
 
 ## Block Tag Handling
 - Text output: block-ish tags are replaced with `\n` on both open and close tags
